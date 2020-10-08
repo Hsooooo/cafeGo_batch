@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project basedir="." default="pmd">
+    <property environment="env"/>
+    	
+    <property name="ant.project.name" value="xobatch"/>
+	<property file="config/${active.profile}/ant_properties/build.properties"/>
+	<property name="target" value="${java.version}"/>
+	<property name="source" value="${java.version}"/>
+
+	<path id="app.lib.path">
+		<fileset dir="${source.lib.dir}">
+            <include name="*.jar"/>
+        </fileset>
+		<fileset dir="${jeus.lib.dir}">
+            <include name="*.jar"/>
+        </fileset>
+		<fileset dir="${java.jre.dir}">
+            <include name="**/*.jar"/>
+        </fileset>
+		<fileset dir="${jeus.lib.dir}">
+            <include name="*.jar"/>
+        </fileset>
+    </path>
+		
+	<path id="fd.lib.path">
+		<fileset dir="${jeus.lib.dir}">
+            <include name="*.jar"/>
+        </fileset>
+		<fileset dir="${fd.lib.dir}">
+            <include name="*.jar"/>
+        </fileset>
+		<fileset dir="${java.jre.dir}">
+            <include name="**/*.jar"/>
+        </fileset>
+		<fileset dir="${jeus.lib.dir}">
+            <include name="*.jar"/>
+        </fileset>
+    </path>
+
+		
+	<!-- 1. target Clear  -->
+	<target name="init">
+		<delete dir="${target.home.dir}"/>
+        <mkdir dir="${target.home.dir}"/>
+        <mkdir dir="${target.classes.dir}"/>
+        <mkdir dir="${target.conf.dir}"/>
+        <mkdir dir="${target.cmd.dir}"/>
+    </target>
+	<!-- 2. source copy  -->
+	<target name="copy.webapp" depends="init">
+		<copy toDir="${target.lib.dir}" failonerror="false">
+            <fileset dir="${source.lib.dir}" includes="**/*" />
+        </copy>
+		<copy toDir="${target.lib.dir}" failonerror="false">
+            <fileset dir="${fd.lib.dir}" includes="**/*" />
+        </copy>
+		<copy toDir="${target.conf.dir}" failonerror="false">
+            <fileset dir="${source.conf.dir}" includes="**/*" />
+        </copy>
+		<copy toDir="${target.cmd.dir}" failonerror="false">
+            <fileset dir="${source.cmd.dir}" includes="**/*" />
+        </copy>
+        <copy toDir="${target.conf.dir}" failonerror="false">
+            <fileset dir="${fd.src.dir}/resource" includes="**/*" />
+            <fileset dir="${fd.src.dir}/mapper" includes="**/*" />
+        </copy>
+	</target>
+	
+	<!-- 3. FD compile  -->	
+	<target name="compile.fd" depends="copy.webapp">
+		<javac fork="true" memoryInitialSize="256m" memoryMaximumSize="256m" debug="on" destdir="${target.classes.dir}" srcdir="${fd.src.dir}" encoding="UTF-8" executable="${java.home.dir}/bin/javac">
+            <classpath refid="fd.lib.path"/>
+        </javac>
+	</target>
+	
+	<!-- 4. APP compile  -->	
+	<target name="compile.app" depends="compile.fd">
+		<javac fork="true" memoryInitialSize="256m" memoryMaximumSize="256m" debug="on" destdir="${target.classes.dir}" srcdir="${source.src.dir}" encoding="EUC-KR" executable="${java.home.dir}/bin/javac">
+            <classpath refid="app.lib.path"/>
+        </javac>
+	</target>
+	
+	 <!-- 5. env copy -->
+    <target name="copy.env" depends="compile.app">
+    	<copy toDir="${target.home.dir}/conf/fdConfig" overwrite="true">
+            <fileset dir="${fd.home.dir}/deploy/${active.profile}" includes="**/*" />
+        </copy>
+        <copy toDir="${target.home.dir}" overwrite="true">
+            <fileset dir="${source.home.dir}/deploy/${active.profile}" includes="**/*" />
+        </copy>
+    </target>
+	
+	<!-- 5. APP war  -->		
+	<target name="war.app" depends="copy.env">
+	    <war 
+	       needxmlfile='false'
+	       destfile="${target.home.dir}/${ant.project.name}.war" 
+	       basedir="${target.home.dir}">
+	    </war>
+	    <mkdir dir="${target.home.dir}/${ant.project.name}"/>
+	    <copy toDir="${target.home.dir}/${ant.project.name}" failonerror="false">
+            <fileset dir="${target.home.dir}">
+                <exclude name="**/${ant.project.name}/**" />
+                <exclude name="${target.home.dir}/${ant.project.name}/${ant.project.name}.war" />
+                <exclude name="${ant.project.name}.war" />
+            </fileset>
+        </copy>
+    </target>
+	
+	<!-- StaticAnalysis -->
+	<property name="findbugs.home.dir" value="/sck/bin/jenkins/findbugs-3.0.1" />
+	<property name="pmd.home.dir" value="/sck/bin/jenkins/pmd-bin-5.8.0" />
+	<property name="report.dir" value="/sck/bin/jenkins/.jenkins/workspace/07.XOBATCH_build_StaticAnalysis/reports" />
+    <property name="report.findbugs.dir" location="${report.dir}/findbugs" />
+	
+	<!-- Clean Report -->
+    <target name="clean.temp" description="Delete all temporary files and folders." depends="war.app">
+    	<delete dir="${report.findbugs.dir}" />
+    </target>
+	
+	<!-- Check findbugs -->
+    <target name="findbugs" description="Run code analysis over code to check for problems." depends="clean.temp">
+        <!-- Fail this target if FindBugs is not installed. -->
+        <available file="${findbugs.home.dir}/lib/findbugs.jar" property="findbugs.available" />
+        <fail unless="findbugs.available" message="Error: FINDBUGS_HOME not set or findbugs.jar not found." />
+
+        <taskdef name="findbugs"
+                 classname="edu.umd.cs.findbugs.anttask.FindBugsTask"
+                 classpath="${findbugs.home.dir}/lib/findbugs-ant.jar" />
+        <!-- Run FindBugs. -->
+        <mkdir dir="${report.findbugs.dir}" />
+
+        <findbugs home="${findbugs.home.dir}"
+                  output="xml:withMessages"
+        		  timeout="90000000"
+				  adjustExperimental="true"
+				  projectName="SIWMS"
+				  debug="false"
+                  outputFile="${report.findbugs.dir}/findbugs.xml"
+        		  effort="max"
+        		  workHard="true"
+				  reportLevel="low"
+        		  errorproperty="true"
+        		  warningsproperty="findbugsFailure"
+        		  failonerror="true"
+        		  quietErrors="true"
+        		  includeFilter="/sck/bin/jenkins/.jenkins/workspace/findbugs/findbugs-include_(V0.9).xml"
+        		  excludeFilter="/sck/bin/jenkins/.jenkins/workspace/findbugs/findbugs-exclude_(V0.9).xml"
+        	>
+        	<sourcePath path="${source.src.dir}" />
+            <class location="${target.classes.dir}" />
+        </findbugs>
+    	<!-- fail if="findbugsFailure" / -->
+    </target>
+
+    <target name="report.findbugs" description="Generate a report on error analysis." depends="findbugs">
+        <xslt in="${report.findbugs.dir}/findbugs.xml"
+              style="${findbugs.home.dir}/src/xsl/fancy.xsl"
+              out="${report.findbugs.dir}/findbugs-default.html"
+        />
+    </target>
+	
+	<!-- Check pmd -->
+	<path id="pmd.classpath">
+		<fileset dir="${pmd.home.dir}/lib">
+	 	<include name="**/*.jar"/>
+	 	</fileset>
+	</path>
+	
+	<target name="pmd" description="Run code PMD analysis over code to check for problems." depends="report.findbugs">
+	    <taskdef name="pmd" classname="net.sourceforge.pmd.ant.PMDTask" classpathref="pmd.classpath"/>
+	    <pmd rulesetfiles="/sck/bin/jenkins/.jenkins/workspace/pmd/shinsegae_pmd_rule_op_v0.4.xml">
+	        <formatter type="xml" toFile="pmd.xml"/>
+	        <fileset dir="${source.src.dir}">
+	            <include name="**/*.java"/>
+	        </fileset>
+	    </pmd>
+	</target>
+</project>

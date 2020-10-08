@@ -1,0 +1,1386 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="xoGift">
+
+    <!-- 사이렌 기프트 일별 판매집계,  XO_STAT_GIFT_SALE_SUM   START -->
+    <select id="xoGift.countXoStatGiftSaleSum" resultClass="java.lang.Integer" parameterClass="java.lang.String">
+        SELECT COUNT(1) FROM XO_STAT_GIFT_SALE_SUM WHERE STAT_DATE = #value#
+    </select>
+    <insert id="xoGift.saveXoStatGiftSaleSum" parameterClass="java.lang.String">
+        INSERT INTO XO_STAT_GIFT_SALE_SUM (
+                STAT_DATE,
+                SALE_BILL_CNT,          SALE_CNT,               SALE_AMT,
+                SALE_CANCEL_BILL_CNT,   SALE_CANCEL_CNT,        SALE_CANCEL_AMT,
+                CUSTOM_GIFT_CNT,        CUSTOM_AMT,
+                CUSTOM_CANCEL_GIFT_CNT, CUSTOM_CANCEL_AMT,
+                APP_REFUND_CNT,         APP_REFUND_AMT,
+                STORE_REFUND_CNT,       STORE_REFUND_AMT,
+                VALID_DATE_EXP_CNT,     VALID_DATE_EXP_AMT,
+                VALID_DATE_EXTEND_CNT,  VALID_DATE_EXTEND_AMT,
+                EXPIRED_CNT,            EXPIRED_AMT,
+                INSERT_DATE,            INSERT_USER,
+                
+                
+                SHOP_SALE_BILL_CNT,          SHOP_SALE_CNT,               SHOP_SALE_AMT,
+                SHOP_SALE_CANCEL_BILL_CNT,   SHOP_SALE_CANCEL_CNT,        SHOP_SALE_CANCEL_AMT,
+                SHOP_CUSTOM_GIFT_CNT,        SHOP_CUSTOM_AMT,
+                SHOP_CUSTOM_CANCEL_GIFT_CNT, SHOP_CUSTOM_CANCEL_AMT
+        )
+		SELECT stat_date                                            AS stat_date
+			   <!-- 사이렌오더 판매 내역 -->
+			 , SALE_BILL_CNT          - SHOP_SALE_BILL_CNT          AS SALE_BILL_CNT
+			 , SALE_CNT               - SHOP_SALE_CNT               AS SALE_CNT
+			 , SALE_AMT               - SHOP_SALE_AMT               AS SALE_AMT
+			 , SALE_CANCEL_BILL_CNT   - SHOP_SALE_CANCEL_BILL_CNT   AS SALE_CANCEL_BILL_CNT
+			 , SALE_CANCEL_CNT        - SHOP_SALE_CANCEL_CNT        AS SALE_CANCEL_CNT
+			 , SALE_CANCEL_AMT        - SHOP_SALE_CANCEL_AMT        AS SALE_CANCEL_AMT
+			 , CUSTOM_GIFT_CNT        - SHOP_CUSTOM_GIFT_CNT        AS CUSTOM_GIFT_CNT
+			 , CUSTOM_AMT             - SHOP_CUSTOM_AMT             AS CUSTOM_AMT
+			 , CUSTOM_CANCEL_GIFT_CNT - SHOP_CUSTOM_CANCEL_GIFT_CNT AS CUSTOM_CANCEL_GIFT_CNT
+			 , CUSTOM_CANCEL_AMT      - SHOP_CUSTOM_CANCEL_AMT      AS CUSTOM_CANCEL_AMT
+			   <!-- 전체 환불,만료 내역 -->
+			 , APP_REFUND_CNT                                       AS APP_REFUND_CNT
+			 , APP_REFUND_AMT										AS APP_REFUND_AMT
+			 , STORE_REFUND_CNT										AS STORE_REFUND_CNT
+			 , STORE_REFUND_AMT										AS STORE_REFUND_AMT
+			 , VALID_DATE_EXP_CNT									AS VALID_DATE_EXP_CNT
+			 , VALID_DATE_EXP_AMT									AS VALID_DATE_EXP_AMT
+			 , VALID_DATE_EXTEND_CNT								AS VALID_DATE_EXTEND_CNT
+			 , VALID_DATE_EXTEND_AMT								AS VALID_DATE_EXTEND_AMT
+			 , EXPIRED_CNT											AS EXPIRED_CNT
+			 , EXPIRED_AMT											AS EXPIRED_AMT
+			 , INSERT_DATE											AS INSERT_DATE
+			 , INSERT_USER											AS INSERT_USER
+			   <!-- GiftShop 판매 내역 -->
+			 , SHOP_SALE_BILL_CNT         							AS SHOP_SALE_BILL_CNT
+			 , SHOP_SALE_CNT              							AS SHOP_SALE_CNT
+			 , SHOP_SALE_AMT              							AS SHOP_SALE_AMT
+			 , SHOP_SALE_CANCEL_BILL_CNT  							AS SHOP_SALE_CANCEL_BILL_CNT
+			 , SHOP_SALE_CANCEL_CNT       							AS SHOP_SALE_CANCEL_CNT
+			 , SHOP_SALE_CANCEL_AMT       							AS SHOP_SALE_CANCEL_AMT
+			 , SHOP_CUSTOM_GIFT_CNT       							AS SHOP_CUSTOM_GIFT_CNT
+			 , SHOP_CUSTOM_AMT            							AS SHOP_CUSTOM_AMT
+			 , SHOP_CUSTOM_CANCEL_GIFT_CNT							AS SHOP_CUSTOM_CANCEL_GIFT_CNT
+			 , SHOP_CUSTOM_CANCEL_AMT     							AS SHOP_CUSTOM_CANCEL_AMT
+		  FROM (
+				SELECT  #value#                                                               AS stat_date,
+
+						COUNT(DISTINCT CASE WHEN STATUS = 'P' THEN GIFT_ORDER_NO END)         AS SALE_BILL_CNT,
+						COUNT(CASE WHEN STATUS = 'P' THEN GIFT_NO END)                        AS SALE_CNT,
+						NVL(SUM(CASE WHEN STATUS = 'P' THEN AMT END), 0)                      AS SALE_AMT,
+
+						COUNT(DISTINCT CASE WHEN STATUS = 'C' THEN GIFT_ORDER_NO END)         AS SALE_CANCEL_BILL_CNT,
+						COUNT(CASE WHEN STATUS = 'C' THEN GIFT_NO END)                        AS SALE_CANCEL_CNT,
+						NVL(SUM(CASE WHEN STATUS = 'C' THEN AMT END), 0)                      AS SALE_CANCEL_AMT,
+
+						COUNT(CASE WHEN STATUS = 'P' AND CUSTOM_AMT > 0 THEN GIFT_NO END)     AS CUSTOM_GIFT_CNT,
+						NVL(SUM(CASE WHEN STATUS = 'P' THEN CUSTOM_AMT END), 0)               AS CUSTOM_AMT,
+
+						COUNT(CASE WHEN STATUS = 'C' AND CUSTOM_AMT > 0 THEN GIFT_NO END)     AS CUSTOM_CANCEL_GIFT_CNT,
+						NVL(SUM(CASE WHEN STATUS = 'C' THEN CUSTOM_AMT END), 0)               AS CUSTOM_CANCEL_AMT,
+
+						COUNT(CASE WHEN STATUS = 'APPREFUND' THEN GIFT_NO END)                AS APP_REFUND_CNT,
+						NVL(SUM(CASE WHEN STATUS = 'APPREFUND' THEN AMT END), 0)              AS APP_REFUND_AMT,
+
+						COUNT(CASE WHEN STATUS = 'STOREREFUND' THEN GIFT_NO END)              AS STORE_REFUND_CNT,
+						NVL(SUM(CASE WHEN STATUS = 'STOREREFUND' THEN AMT END), 0)            AS STORE_REFUND_AMT,
+
+						COUNT(CASE WHEN STATUS = 'EXPIRE' THEN GIFT_NO END)                   AS VALID_DATE_EXP_CNT,
+						NVL(SUM(CASE WHEN STATUS = 'EXPIRE' THEN AMT END), 0)                 AS VALID_DATE_EXP_AMT,
+
+						COUNT(CASE WHEN STATUS = 'EXTEND' THEN GIFT_NO END)                   AS VALID_DATE_EXTEND_CNT,
+						NVL(SUM(CASE WHEN STATUS = 'EXTEND' THEN AMT END), 0)                 AS VALID_DATE_EXTEND_AMT,
+
+						COUNT(CASE WHEN STATUS = 'EXTINCT' THEN GIFT_NO END)                  AS EXPIRED_CNT,
+						NVL(SUM(CASE WHEN STATUS = 'EXTINCT' THEN AMT END), 0)                AS EXPIRED_AMT,
+
+						sysdate                      AS INSERT_DATE,
+						'XO_BATCH'                   AS INSERT_USER,
+
+						<!-- eGift Shop 정보 -->
+						COUNT(DISTINCT CASE WHEN STATUS = 'EGIFT-P' THEN GIFT_ORDER_NO END)         AS SHOP_SALE_BILL_CNT,
+						COUNT(CASE WHEN STATUS = 'EGIFT-P' THEN GIFT_NO END)                        AS SHOP_SALE_CNT,
+						NVL(SUM(CASE WHEN STATUS = 'EGIFT-P' THEN AMT END), 0)                      AS SHOP_SALE_AMT,
+
+						COUNT(DISTINCT CASE WHEN STATUS = 'EGIFT-C' THEN GIFT_ORDER_NO END)         AS SHOP_SALE_CANCEL_BILL_CNT,
+						COUNT(CASE WHEN STATUS = 'EGIFT-C' THEN GIFT_NO END)                        AS SHOP_SALE_CANCEL_CNT,
+						NVL(SUM(CASE WHEN STATUS = 'EGIFT-C' THEN AMT END), 0)                      AS SHOP_SALE_CANCEL_AMT,
+
+						COUNT(CASE WHEN STATUS = 'EGIFT-P' AND CUSTOM_AMT > 0 THEN GIFT_NO END)     AS SHOP_CUSTOM_GIFT_CNT,
+						NVL(SUM(CASE WHEN STATUS = 'EGIFT-P' THEN CUSTOM_AMT END), 0)               AS SHOP_CUSTOM_AMT,
+
+						COUNT(CASE WHEN STATUS = 'EGIFT-C' AND CUSTOM_AMT > 0 THEN GIFT_NO END)     AS SHOP_CUSTOM_CANCEL_GIFT_CNT,
+						NVL(SUM(CASE WHEN STATUS = 'EGIFT-C' THEN CUSTOM_AMT END), 0)               AS SHOP_CUSTOM_CANCEL_AMT
+
+				FROM (
+
+						<!--    오늘 판매된 기프트와, 오늘 취소된 기프트     -->
+						SELECT GIFT_ORDER_NO,
+							   GIFT_NO,
+							   AMT,
+							   STATUS,
+							   CUSTOM_AMT
+						FROM (
+							   SELECT DISTINCT
+									  xgoh.GIFT_ORDER_NO,
+									  xgi.GIFT_NO,
+									  xgi.GND_AMOUNT AS AMT,
+									  DECODE(xgoh.STATUS,
+									  'O20', 'P',
+									  'O30', 'C',
+									  'O33', 'C') AS STATUS,
+									  (CASE WHEN xgi.product_type = '2' THEN 0
+											ELSE SUM(DECODE(xgid.ITEM_SEQ, '1', 0, xgid.GND_AMOUNT)) OVER (PARTITION BY xgi.GIFT_NO, xgoh.STATUS)
+										END
+									  ) AS CUSTOM_AMT,
+									  xgid.ITEM_SEQ
+								 FROM XO_GIFT_ORDER_HISTORY xgoh,
+									  XO_GIFT_ISSUE## xgi,
+									  XO_GIFT_ISSUE_DETAIL xgid
+				                    , (
+				                        SELECT hh.gift_order_no
+				                             , hh.status
+				                             , ROW_NUMBER()     OVER (PARTITION BY hh.GIFT_ORDER_NO, hh.STATUS ORDER BY hh.REG_DATE) AS order_seq
+				                             , MIN(hh.reg_Date) OVER (PARTITION BY hh.GIFT_ORDER_NO, hh.STATUS ORDER BY hh.REG_DATE) AS first_reg_date
+				                          FROM xo_gift_order_history hh
+				                             , (
+				                                SELECT gift_order_no
+				                                     , status
+				                                  FROM xo_gift_order_history h
+				                                 WHERE TO_DATE(#value#, 'YYYYMMDD') <![CDATA[   <=    ]]> h.REG_DATE
+				                                   AND h.REG_DATE                   <![CDATA[   <     ]]> TO_DATE(#value#,'YYYYMMDD') + 1 
+				                                   AND h.STATUS IN ('O20', 'O30', 'O33')     
+				                               ) hhh
+				                         WHERE hh.gift_order_no = hhh.gift_order_no
+				                           AND hh.status        = hhh.status  
+				                      ) hf  
+								WHERE TO_DATE(#value#, 'YYYYMMDD')     <![CDATA[   <=    ]]>   xgoh.REG_DATE
+								  AND xgoh.REG_DATE                    <![CDATA[   <     ]]>   TO_DATE(#value#,'YYYYMMDD') + 1
+								  AND xgoh.STATUS IN ('O20', 'O30', 'O33')
+								  AND xgi.GIFT_ORDER_NO = xgoh.GIFT_ORDER_NO
+								  AND xgid.GIFT_NO = xgi.GIFT_NO
+
+				                  AND xgoh.gift_order_no = hf.gift_order_no
+				                  AND xgoh.status        = hf.status
+				                  AND xgoh.reg_date      = hf.first_reg_date
+				                  AND hf.order_seq       = 1
+						)
+						WHERE ITEM_SEQ = 1
+
+				UNION ALL
+
+				<!--    오늘 환불이 완료된 기프트        -->
+						SELECT xgi.GIFT_ORDER_NO,
+							   xgi.GIFT_NO,
+							   xgr.REFUND_AMOUNT                            AS AMT,
+							   DECODE(xgi.STATUS,
+									  'G20', 'APPREFUND',
+									  'G21', 'STOREREFUND')                 AS STATUS,
+							   0                                            AS CUSTOM_AMT
+						  FROM XO_GIFT_REFUND   xgr,
+							   XO_GIFT_ISSUE##  xgi
+						 WHERE TO_DATE(#value#, 'YYYYMMDD')     <![CDATA[   <=    ]]>   xgr.STATUS_DATE
+						   AND xgr.STATUS_DATE                  <![CDATA[   <     ]]>   TO_DATE(#value#, 'YYYYMMDD') + 1
+						   AND xgr.GIFT_NO  = xgi.GIFT_NO
+						   AND xgr.STATUS   = 'C'
+
+				UNION ALL
+
+						<!--    유효기간 만료일이 오늘인 기프트       -->
+						SELECT xgi.GIFT_ORDER_NO,
+							   xgi.GIFT_NO,
+							   xgi.GND_AMOUNT AS AMT,
+							   'EXPIRE'       AS STATUS,
+							   0              AS CUSTOM_AMT
+						  FROM XO_GIFT_ISSUE## xgi
+						 WHERE xgi.EXPIRE_DATE  = #value#
+						   AND xgi.STATUS       = 'G00'
+
+				UNION ALL
+
+						<!--    오늘 유효기간을 연장한 기프트    -->
+						SELECT xgi.GIFT_ORDER_NO,
+							   xgi.GIFT_NO,
+							   xgi.GND_AMOUNT AS AMT,
+							   'EXTEND'       AS STATUS,
+							   0              AS CUSTOM_AMT
+						  FROM XO_GIFT_ORDER_HISTORY xgoh, XO_GIFT_ISSUE## xgi
+						 WHERE TO_DATE(#value#, 'YYYYMMDD')     <![CDATA[   <=    ]]>   xgoh.REG_DATE
+						   AND xgoh.REG_DATE                    <![CDATA[   <     ]]>   TO_DATE(#value#, 'YYYYMMDD') + 1
+						   AND xgoh.GIFT_NO = xgi.GIFT_NO
+						   AND xgoh.STATUS  = 'H01'
+
+				UNION ALL
+
+						<!--    오늘이 시효만료인 기프트       -->
+						SELECT xgi.GIFT_ORDER_NO,
+							   xgi.GIFT_NO,
+							   xgi.GND_AMOUNT AS AMT,
+							   'EXTINCT'      AS STATUS,
+							   0              AS CUSTOM_AMT
+						  FROM XO_GIFT_ISSUE## xgi
+						 WHERE ADD_MONTHS(trunc(xgi.REG_DATE), 60) = TO_DATE(#value#, 'YYYYMMDD')
+						   AND xgi.STATUS = 'G00'
+
+				UNION ALL
+
+						<!--    오늘 판매된 Egift Shop의 기프트와, 오늘 취소된 기프트     -->
+						SELECT GIFT_ORDER_NO,
+							   GIFT_NO,
+							   AMT,
+							   STATUS,
+							   CUSTOM_AMT
+						FROM (
+							   SELECT DISTINCT
+									  xgoh.GIFT_ORDER_NO,
+									  xgi.GIFT_NO,
+									  xgi.GND_AMOUNT AS AMT,
+									  DECODE(xgoh.STATUS,
+									  'O20', 'EGIFT-P',
+									  'O30', 'EGIFT-C',
+									  'O33', 'EGIFT-C') AS STATUS,
+									  (CASE WHEN xgi.product_type = '2' THEN 0
+											ELSE SUM(DECODE(xgid.ITEM_SEQ, '1', 0, xgid.GND_AMOUNT)) OVER (PARTITION BY xgi.GIFT_NO, xgoh.STATUS)
+										END
+									  ) AS CUSTOM_AMT,
+									  xgid.ITEM_SEQ
+								 FROM XO_GIFT_ORDER_HISTORY xgoh,
+									  XO_GIFT_ISSUE## xgi,
+									  XO_GIFT_ISSUE_DETAIL xgid
+				                    , (
+				                        SELECT hh.gift_order_no
+				                             , hh.status
+				                             , ROW_NUMBER()     OVER (PARTITION BY hh.GIFT_ORDER_NO, hh.STATUS ORDER BY hh.REG_DATE) AS order_seq
+				                             , MIN(hh.reg_Date) OVER (PARTITION BY hh.GIFT_ORDER_NO, hh.STATUS ORDER BY hh.REG_DATE) AS first_reg_date
+				                          FROM xo_gift_order_history hh
+				                             , (
+				                                SELECT gift_order_no
+				                                     , status
+				                                  FROM xo_gift_order_history h
+				                                 WHERE TO_DATE(#value#, 'YYYYMMDD') 	<![CDATA[	<=	]]>	 h.REG_DATE
+				                                   AND h.REG_DATE                   	<![CDATA[	<	]]>  TO_DATE(#value#,'YYYYMMDD') + 1 
+				                                   AND h.STATUS IN ('O20', 'O30', 'O33')     
+				                               ) hhh
+				                         WHERE hh.gift_order_no = hhh.gift_order_no
+				                           AND hh.status        = hhh.status  
+				                      ) hf  
+								WHERE TO_DATE(#value#, 'YYYYMMDD')     <![CDATA[   <=    ]]>   xgoh.REG_DATE
+								  AND xgoh.REG_DATE                    <![CDATA[   <     ]]>   TO_DATE(#value#,'YYYYMMDD') + 1
+								  AND xgoh.STATUS IN ('O20', 'O30', 'O33')
+								  AND xgi.GIFT_ORDER_NO = xgoh.GIFT_ORDER_NO
+								  AND xgid.GIFT_NO = xgi.GIFT_NO
+								  AND xgi.PRODUCT_NO IS NOT NULL
+
+				                  AND xgoh.gift_order_no = hf.gift_order_no
+				                  AND xgoh.status        = hf.status
+				                  AND xgoh.reg_date      = hf.first_reg_date
+				                  AND hf.order_seq       = 1
+						)
+						WHERE ITEM_SEQ = 1
+				)
+			   )
+    </insert>
+    <!-- 사이렌 기프트 일별 판매집계,  XO_STAT_GIFT_SALE_SUM   END -->
+
+    <sql id="xoGift.memberType">
+        (
+            CASE
+                WHEN xgo.MSR_USER_GRADE IS NULL                             THEN '2'
+                WHEN xgo.MSR_USER_GRADE = '00'                              THEN '3'
+                WHEN xgo.MSR_USER_GRADE = '10' OR xgo.MSR_USER_GRADE = '11' THEN '4'
+                WHEN xgo.MSR_USER_GRADE = '20' OR xgo.MSR_USER_GRADE = '21' THEN '5'
+                ELSE                                                             '1'
+            END
+        ) AS member_type
+    </sql>
+
+    <!--    사이렌기프트 SSG PAY 결제 일통계, XO_STAT_GIFT_SSGPAY_DAY    START   -->
+    <select id="xoGift.countXoStatGiftSSGPayDay" resultClass="java.lang.Integer" parameterClass="java.lang.String">
+        SELECT COUNT(1) FROM XO_STAT_GIFT_SSGPAY_DAY WHERE STAT_DATE = #value#
+    </select>
+    <insert id="xoGift.saveXoStatGiftSSGPayDay" parameterClass="java.lang.String">
+        INSERT
+          INTO XO_STAT_GIFT_SSGPAY_DAY (
+                  STAT_DATE,                MEMBER_TYPE,
+                  CARD_COUNT,               CARD_AMOUNT,
+                  CARD_CANCEL_COUNT,        CARD_CANCEL_AMOUNT,
+                  CARD_REFUND_COUNT,        CARD_REFUND_AMOUNT,
+                  MONEY_COUNT,              MONEY_AMOUNT,
+                  MONEY_CANCEL_COUNT,       MONEY_CANCEL_AMOUNT,
+                  MONEY_REFUND_COUNT,       MONEY_REFUND_AMOUNT,
+                  MULTI_COUNT,
+                  MULTI_CARD_AMOUNT,        MULTI_MONEY_AMOUNT,
+                  MULTI_CANCEL_COUNT,
+                  MULTI_CARD_CANCEL_AMOUNT, MULTI_MONEY_CANCEL_AMOUNT,
+                  MULTI_REFUND_COUNT,
+                  MULTI_CARD_REFUND_AMOUNT, MULTI_MONEY_REFUND_AMOUNT
+        )
+        SELECT DISTINCT
+               #value#  AS  STAT_DATE,
+               MEMBER_TYPE,
+               SUM(CASE WHEN PAY_METHOD = 'G' AND PAY_TYPE = '1' AND STATUS = 'P' THEN 1 ELSE 0 END )       OVER (PARTITION BY (MEMBER_TYPE)) AS CARD_COUNT,
+               SUM(CASE WHEN PAY_METHOD = 'G' AND PAY_TYPE = '1' AND STATUS = 'P' THEN AMOUNT ELSE 0 END )  OVER (PARTITION BY (MEMBER_TYPE)) AS CARD_AMOUNT,
+               SUM(CASE WHEN PAY_METHOD = 'G' AND PAY_TYPE = '1' AND STATUS = 'C' THEN 1 ELSE 0 END )       OVER (PARTITION BY (MEMBER_TYPE)) AS CARD_CANCEL_COUNT,
+               SUM(CASE WHEN PAY_METHOD = 'G' AND PAY_TYPE = '1' AND STATUS = 'C' THEN AMOUNT ELSE 0 END )  OVER (PARTITION BY (MEMBER_TYPE)) AS CARD_CANCEL_AMOUNT,
+               SUM(CASE WHEN PAY_METHOD = 'G' AND PAY_TYPE = '1' AND STATUS = 'R' THEN 1 ELSE 0 END )       OVER (PARTITION BY (MEMBER_TYPE)) AS CARD_REFUND_COUNT,
+               SUM(CASE WHEN PAY_METHOD = 'G' AND PAY_TYPE = '1' AND STATUS = 'R' THEN AMOUNT ELSE 0 END )  OVER (PARTITION BY (MEMBER_TYPE)) AS CARD_REFUND_AMOUNT,
+
+               SUM(CASE WHEN PAY_METHOD = 'M' AND PAY_TYPE = '1' AND STATUS = 'P' THEN 1 ELSE 0 END )       OVER (PARTITION BY (MEMBER_TYPE)) AS MONEY_COUNT,
+               SUM(CASE WHEN PAY_METHOD = 'M' AND PAY_TYPE = '1' AND STATUS = 'P' THEN AMOUNT ELSE 0 END )  OVER (PARTITION BY (MEMBER_TYPE)) AS MONEY_AMOUNT,
+               SUM(CASE WHEN PAY_METHOD = 'M' AND PAY_TYPE = '1' AND STATUS = 'C' THEN 1 ELSE 0 END )       OVER (PARTITION BY (MEMBER_TYPE)) AS MONEY_CANCEL_COUNT,
+               SUM(CASE WHEN PAY_METHOD = 'M' AND PAY_TYPE = '1' AND STATUS = 'C' THEN AMOUNT ELSE 0 END )  OVER (PARTITION BY (MEMBER_TYPE)) AS MONEY_CANCEL_AMOUNT,
+               SUM(CASE WHEN PAY_METHOD = 'M' AND PAY_TYPE = '1' AND STATUS = 'R' THEN 1 ELSE 0 END )       OVER (PARTITION BY (MEMBER_TYPE)) AS MONEY_REFUND_COUNT,
+               SUM(CASE WHEN PAY_METHOD = 'M' AND PAY_TYPE = '1' AND STATUS = 'R' THEN AMOUNT ELSE 0 END )  OVER (PARTITION BY (MEMBER_TYPE)) AS MONEY_REFUND_AMOUNT,
+
+               SUM(CASE WHEN PAY_TYPE = '2' AND STATUS = 'P' THEN 1 ELSE 0 END )                            OVER (PARTITION BY (MEMBER_TYPE)) AS MULTI_COUNT,
+               SUM(CASE WHEN PAY_METHOD = 'G' AND PAY_TYPE = '2' AND STATUS = 'P' THEN AMOUNT ELSE 0 END )  OVER (PARTITION BY (MEMBER_TYPE)) AS MULTI_CARD_AMOUNT,
+               SUM(CASE WHEN PAY_METHOD = 'M' AND PAY_TYPE = '2' AND STATUS = 'P' THEN AMOUNT ELSE 0 END )  OVER (PARTITION BY (MEMBER_TYPE)) AS MULTI_MONEY_AMOUNT,
+
+               SUM(CASE WHEN PAY_TYPE = '2' AND STATUS = 'C' THEN 1 ELSE 0 END )                            OVER (PARTITION BY (MEMBER_TYPE)) AS MULTI_CANCEL_COUNT,
+               SUM(CASE WHEN PAY_METHOD = 'G' AND PAY_TYPE = '2' AND STATUS = 'C' THEN AMOUNT ELSE 0 END )  OVER (PARTITION BY (MEMBER_TYPE)) AS MULTI_CARD_CANCEL_AMOUNT,
+               SUM(CASE WHEN PAY_METHOD = 'M' AND PAY_TYPE = '2' AND STATUS = 'C' THEN AMOUNT ELSE 0 END )  OVER (PARTITION BY (MEMBER_TYPE)) AS MULTI_MONEY_CANCEL_AMOUNT,
+
+               SUM(CASE WHEN PAY_TYPE = '2' AND STATUS = 'R' THEN 1 ELSE 0 END )                            OVER (PARTITION BY (MEMBER_TYPE)) AS MULTI_REFUND_COUNT,
+               SUM(CASE WHEN PAY_METHOD = 'G' AND PAY_TYPE = '2' AND STATUS = 'R' THEN AMOUNT ELSE 0 END )  OVER (PARTITION BY (MEMBER_TYPE)) AS MULTI_CARD_REFUND_AMOUNT,
+               SUM(CASE WHEN PAY_METHOD = 'M' AND PAY_TYPE = '2' AND STATUS = 'R' THEN AMOUNT ELSE 0 END )  OVER (PARTITION BY (MEMBER_TYPE)) AS MULTI_MONEY_REFUND_AMOUNT
+        FROM (
+              SELECT xgp.PAY_METHOD,
+                     'P' AS status,
+                     xgp.AMOUNT,
+                     COUNT(xgo.GIFT_ORDER_NO) OVER (PARTITION BY xgo.GIFT_ORDER_NO) AS PAY_TYPE,
+                     <include refid="xoGift.memberType"/>
+                FROM XO_GIFT_PAYMENT##  xgp,
+                     XO_GIFT_ORDER##    xgo
+               WHERE TO_DATE(#value#, 'YYYYMMDD')     <![CDATA[   <=  ]]>   xgp.APP_DATE
+                 AND xgp.APP_DATE                     <![CDATA[   <   ]]>   TO_DATE(#value#, 'YYYYMMDD') + 1
+                 AND xgp.RESULT_CODE = '00'
+                 AND xgp.GIFT_ORDER_NO = xgo.GIFT_ORDER_NO
+                 AND xgp.PAY_METHOD IN ('G', 'M')
+
+               UNION ALL
+
+              SELECT xgp.PAY_METHOD,
+                     xgp.STATUS,
+                     xgp.AMOUNT,
+                     COUNT(xgo.GIFT_ORDER_NO) OVER (PARTITION BY xgo.GIFT_ORDER_NO) AS PAY_TYPE,
+                     <include refid="xoGift.memberType"/>
+                FROM XO_GIFT_PAYMENT##  xgp,
+                     XO_GIFT_ORDER##    xgo
+               WHERE TO_DATE(#value#, 'YYYYMMDD')       <![CDATA[     <=    ]]>   xgp.CANCEL_DATE
+                 AND xgp.CANCEL_DATE                    <![CDATA[     <     ]]>   TO_DATE(#value#, 'YYYYMMDD') + 1
+                 AND xgp.RESULT_CODE = '00'
+                 AND xgo.GIFT_ORDER_NO = xgp.GIFT_ORDER_NO
+                 AND xgp.PAY_METHOD IN ('G', 'M')
+          )
+    </insert>
+    <!--    사이렌기프트 SSG PAY 결제 일통계, XO_STAT_GIFT_SSGPAY_DAY    END   -->
+
+    <!--    사이렌기프트 결제수단별 매출 일통계,    XO_STAT_GIFT_PAY_METHOD_DAY     START   -->
+    <!-- 	[PG확대] 2020.05.07 - 통계 테이블에 PG사 코드 추가 등록 -->
+    <select id="xoGift.countXoStatGiftPayMethodDay" resultClass="java.lang.Integer" parameterClass="java.lang.String">
+        SELECT COUNT(1) FROM XO_STAT_GIFT_PAY_METHOD_DAY WHERE STAT_DATE = #value#
+    </select>
+    <insert id="xoGift.saveXoStatGiftPayMethodDay" parameterClass="java.lang.String">
+        INSERT
+          INTO XO_STAT_GIFT_PAY_METHOD_DAY (
+               STAT_DATE,
+               MEMBER_TYPE,
+               PAY_METHOD,
+               COUNT,        AMOUNT,
+               CANCEL_COUNT, CANCEL_AMOUNT,
+               REFUND_COUNT, REFUND_AMOUNT, pgcm_code)
+
+              SELECT
+                      DISTINCT
+                      #value# AS STAT_DATE,
+
+                      MEMBER_type,
+                      PAY_METHOD,
+
+                      COUNT(CASE WHEN STATUS = 'P' THEN GIFT_ORDER_NO END ) OVER (PARTITION BY PAY_METHOD, member_type, pgcm_code) AS count,
+                      NVL(SUM(CASE WHEN STATUS = 'P' THEN amount END )      OVER (PARTITION BY PAY_METHOD, member_type, pgcm_code), 0) AS AMOUNT,
+
+                      COUNT(CASE WHEN STATUS = 'C' THEN GIFT_ORDER_NO END ) OVER (PARTITION BY PAY_METHOD, member_type, pgcm_code) AS CANCEL_COUNT,
+                      NVL(SUM(CASE WHEN STATUS = 'C' THEN AMOUNT END )      OVER (PARTITION BY PAY_METHOD, member_type, pgcm_code), 0) AS CANCEL_AMOUNT,
+
+                      COUNT(CASE WHEN STATUS = 'R' THEN GIFT_ORDER_NO END ) OVER (PARTITION BY PAY_METHOD, member_type, pgcm_code) AS REFUND_COUNT,
+                      NVL(SUM(CASE WHEN STATUS = 'R' THEN AMOUNT END )      OVER (PARTITION BY PAY_METHOD, member_type, pgcm_code),0) AS REFUND_AMOUNT,
+                      pgcm_code
+              FROM (
+                      SELECT xgo.GIFT_ORDER_NO,
+                             xgp.PAY_METHOD,
+                             'P' AS STATUS,
+                             xgp.AMOUNT,
+                             <include refid="xoGift.memberType"/>
+                             , CASE
+	                              WHEN xgp.pgcm_code IS NOT NULL THEN xgp.pgcm_code
+	                              WHEN xgp.pay_method = 'C' THEN '001'
+	                              WHEN xgp.pay_method = 'G' THEN '002'
+	                              WHEN xgp.pay_method = 'M' THEN '002'
+                           		 ELSE '000'
+                       		   END AS pgcm_code
+                        FROM XO_GIFT_PAYMENT##  xgp,
+                             XO_GIFT_ORDER##    xgo
+                       WHERE TO_DATE(#value#, 'YYYYMMDD')         <![CDATA[   <=    ]]>   xgp.APP_DATE
+                         AND xgp.APP_DATE                         <![CDATA[   <     ]]>   TO_DATE(#value#, 'YYYYMMDD') + 1
+                         AND xgo.GIFT_ORDER_NO = xgp.GIFT_ORDER_NO
+                         AND xgp.RESULT_CODE = '00'
+
+                                UNION ALL
+
+                      SELECT xgo.GIFT_ORDER_NO,
+                             xgp.PAY_METHOD,
+                             xgp.STATUS,
+                             xgp.AMOUNT,
+                             <include refid="xoGift.memberType"/>
+                             , CASE
+	                              WHEN xgp.pgcm_code IS NOT NULL THEN xgp.pgcm_code
+	                              WHEN xgp.pay_method = 'C' THEN '001'
+	                              WHEN xgp.pay_method = 'G' THEN '002'
+	                              WHEN xgp.pay_method = 'M' THEN '002'
+                              	ELSE '000'
+                              END AS pgcm_code
+                        FROM XO_GIFT_ORDER##    xgo,
+                             XO_GIFT_PAYMENT##  xgp
+                       WHERE TO_DATE(#value#, 'YYYYMMDD')    <![CDATA[   <=  ]]>  xgp.CANCEL_DATE
+                         AND xgp.CANCEL_DATE                 <![CDATA[   <   ]]>  TO_DATE(#value#, 'YYYYMMDD') + 1
+                         AND xgo.GIFT_ORDER_NO = xgp.GIFT_ORDER_NO
+                         AND xgp.RESULT_CODE = '00'
+            )
+    </insert>
+    <!--    사이렌기프트 결제수단별 매출 일통계,    XO_STAT_GIFT_PAY_METHOD_DAY     END   -->
+
+    <!--    사이렌기프트 일별 SKU별 판매사용 집계,  XO_STAT_GIFT_SKU_SALE_SUM  START   -->
+    <select id="xoGift.countXoStatGiftSkuSaleSum" resultClass="java.lang.Integer" parameterClass="java.lang.String">
+        SELECT COUNT(1) FROM XO_STAT_GIFT_SKU_SALE_SUM WHERE STAT_DATE = #value#
+    </select>
+    <insert id="xoGift.saveXoStatGiftSkuSaleSum" parameterClass="java.lang.String">
+        INSERT
+          INTO XO_STAT_GIFT_SKU_SALE_SUM (
+               STAT_DATE,               SKU_NO,
+               SALE_CNT,                SALE_AMT,
+               SALE_CANCEL_CNT,         SALE_CANCEL_AMT,
+               CUSTOM_GIFT_CNT,         CUSTOM_AMT,
+               CUSTOM_CANCEL_GIFT_CNT,  CUSTOM_CANCEL_AMT,
+               USE_CNT,                 GIFT_PAY_AMT,
+               USE_CANCEL_CNT,          GIFT_PAY_CANCEL_AMT,
+               APP_REFUND_CNT,          APP_REFUND_AMT,
+               STORE_REFUND_CNT,        STORE_REFUND_AMT,
+               INSERT_DATE,             INSERT_USER,
+               GIFT_USE_CNT,            TRANS_USE_CNT, 
+               GIFT_USE_AMT,            TRANS_USE_AMT, 
+               GIFT_USE_CANCEL_CNT,     TRANS_USE_CANCEL_CNT, 
+               GIFT_USE_CANCEL_AMT,     TRANS_USE_CANCEL_AMT
+        )
+              SELECT DISTINCT
+                     #value# AS STAT_DATE,
+                     SKU_NO,
+
+                     COUNT  (CASE WHEN STATUS = 'PAYMENT'                          THEN          1 END) OVER (PARTITION BY SKU_NO)     AS SALE_CNT,
+                     NVL(SUM(CASE WHEN STATUS = 'PAYMENT'                          THEN        AMT END) OVER (PARTITION BY SKU_NO), 0) AS SALE_AMT,
+
+                     COUNT  (CASE WHEN STATUS = 'PAYMENTCANCEL'                    THEN          1 END) OVER (PARTITION BY SKU_NO)     AS SALE_CANCEL_CNT,
+                     NVL(SUM(CASE WHEN STATUS = 'PAYMENTCANCEL'                    THEN        AMT END) OVER (PARTITION BY SKU_NO), 0) AS SALE_CANCEL_AMT,
+
+                     COUNT  (CASE WHEN STATUS = 'PAYMENT'       AND CUSTOM_AMT > 0 THEN          1 END) OVER (PARTITION BY SKU_NO)     AS CUSTOM_GIFT_CNT,
+                     NVL(SUM(CASE WHEN STATUS = 'PAYMENT'       AND CUSTOM_AMT > 0 THEN CUSTOM_AMT END) OVER (PARTITION BY SKU_NO), 0) AS CUSTOM_AMT,
+
+                     COUNT  (CASE WHEN STATUS = 'PAYMENTCANCEL' AND CUSTOM_AMT > 0 THEN          1 END) OVER (PARTITION BY SKU_NO)     AS CUSTOM_CANCEL_GIFT_CNT,
+                     NVL(SUM(CASE WHEN STATUS = 'PAYMENTCANCEL' AND CUSTOM_AMT > 0 THEN CUSTOM_AMT END) OVER (PARTITION BY SKU_NO), 0) AS CUSTOM_CANCEL_AMT,
+
+                     COUNT  (CASE WHEN STATUS = 'USE'                              THEN          1 END) OVER (PARTITION BY SKU_NO)     AS USE_CNT,
+                     NVL(SUM(CASE WHEN STATUS = 'USE'                              THEN        AMT END) OVER (PARTITION BY SKU_NO), 0) AS GIFT_PAY_AMT,
+
+                     COUNT  (CASE WHEN STATUS = 'USECANCEL'                        THEN          1 END) OVER (PARTITION BY SKU_NO)     AS USE_CANCEL_CNT,
+                     NVL(SUM(CASE WHEN STATUS = 'USECANCEL'                        THEN        AMT END) OVER (PARTITION BY SKU_NO), 0) AS GIFT_PAY_CANCEL_AMT,
+
+                     COUNT  (CASE WHEN STATUS = 'APPREFUND'                        THEN          1 END) OVER (PARTITION BY SKU_NO)     AS APP_REFUND_CNT,
+                     NVL(SUM(CASE WHEN STATUS = 'APPREFUND'                        THEN        AMT END) OVER (PARTITION BY SKU_NO), 0) AS APP_REFUND_AMT,
+
+                     COUNT  (CASE WHEN STATUS = 'STOREREFUND'                      THEN          1 END) OVER (PARTITION BY SKU_NO)     AS STORE_REFUND_CNT,
+                     NVL(SUM(CASE WHEN STATUS = 'STOREREFUND'                      THEN        AMT END) OVER (PARTITION BY SKU_NO), 0) AS STORE_REFUND_AMT,
+
+                     sysdate    AS INSERT_DATE,
+                     'XO_BATCH' AS INSERT_USER,
+                     
+                     COUNT  (CASE WHEN STATUS = 'USE'           AND USE_TYPE = '1' THEN          1 END) OVER (PARTITION BY SKU_NO)     AS GIFT_USE_CNT,
+                     COUNT  (CASE WHEN STATUS = 'USE'           AND USE_TYPE = '2' THEN          1 END) OVER (PARTITION BY SKU_NO)     AS TRANS_USE_CNT,
+                     
+                     NVL(SUM(CASE WHEN STATUS = 'USE'           AND USE_TYPE = '1' THEN        AMT END) OVER (PARTITION BY SKU_NO), 0) AS GIFT_USE_AMT,
+                     NVL(SUM(CASE WHEN STATUS = 'USE'           AND USE_TYPE = '2' THEN        AMT END) OVER (PARTITION BY SKU_NO), 0) AS TRANS_USE_AMT,
+
+                     COUNT  (CASE WHEN STATUS = 'USECANCEL'     AND USE_TYPE = '1' THEN          1 END) OVER (PARTITION BY SKU_NO)     AS GIFT_USE_CANCEL_CNT,
+                     COUNT  (CASE WHEN STATUS = 'USECANCEL'     AND USE_TYPE = '2' THEN          1 END) OVER (PARTITION BY SKU_NO)     AS TRANS_USE_CANCEL_CNT,
+                     
+                     NVL(SUM(CASE WHEN STATUS = 'USECANCEL'     AND USE_TYPE = '1' THEN        AMT END) OVER (PARTITION BY SKU_NO), 0) AS GIFT_USE_CANCEL_AMT,
+                     NVL(SUM(CASE WHEN STATUS = 'USECANCEL'     AND USE_TYPE = '2' THEN        AMT END) OVER (PARTITION BY SKU_NO), 0) AS TRANS_USE_CANCEL_AMT
+              FROM (
+                      <!--      결제/취소/사용/사용취소 목록    -->
+                      SELECT SKU_NO,
+                             AMT,
+                             STATUS,
+                             CUSTOM_AMT,
+                             USE_TYPE
+                        FROM (
+                              SELECT xgid.SKU_NO,
+                                     xgid.ITEM_SEQ,
+									 (CASE WHEN xgi.product_type = '2' THEN xgid.gnd_amount
+										   ELSE xgi.GND_AMOUNT
+                  					   END 
+                					 ) AS AMT,
+                                     DECODE(xgoh.STATUS,
+                                            'O20', 'PAYMENT',
+                                            'O30', 'PAYMENTCANCEL',
+                                            'O33', 'PAYMENTCANCEL')         AS STATUS,
+									 (CASE WHEN xgi.product_type = '2' THEN 0
+                       					   ELSE SUM(DECODE(xgid.ITEM_SEQ, '1', 0, xgid.GND_AMOUNT)) OVER (PARTITION BY xgi.GIFT_NO, xgoh.STATUS)
+                  					   END 
+                				     ) AS CUSTOM_AMT,
+                                     xgi.USE_TYPE,
+                                     xgid.SEQ_SUB_NO
+                                FROM XO_GIFT_ORDER_HISTORY  xgoh,
+                                     XO_GIFT_ISSUE##        xgi,
+                                     XO_GIFT_ISSUE_DETAIL   xgid
+				                    , (
+				                        SELECT hh.gift_order_no
+				                             , hh.status
+				                             , ROW_NUMBER()     OVER (PARTITION BY hh.GIFT_ORDER_NO, hh.STATUS ORDER BY hh.REG_DATE) AS order_seq
+				                             , MIN(hh.reg_Date) OVER (PARTITION BY hh.GIFT_ORDER_NO, hh.STATUS ORDER BY hh.REG_DATE) AS first_reg_date
+				                          FROM xo_gift_order_history hh
+				                             , (
+				                                SELECT gift_order_no
+				                                     , status
+				                                  FROM xo_gift_order_history h
+				                                 WHERE TO_DATE(#value#, 'YYYYMMDD') <![CDATA[   <=    ]]> h.REG_DATE
+				                                   AND h.REG_DATE                   <![CDATA[   <     ]]> TO_DATE(#value#,'YYYYMMDD') + 1 
+				                                   AND h.STATUS IN ('O20', 'O30', 'O33')     
+				                               ) hhh
+				                         WHERE hh.gift_order_no = hhh.gift_order_no
+				                           AND hh.status        = hhh.status  
+				                      ) hf 
+                               WHERE TO_DATE(#value#, 'YYYYMMDD')     <![CDATA[   <=    ]]>   xgoh.REG_DATE
+                                 AND xgoh.REG_DATE                    <![CDATA[   <     ]]>   TO_DATE(#value#, 'YYYYMMDD') + 1
+                                 AND xgoh.STATUS IN ('O20', 'O30', 'O33')
+                                 AND xgi.GIFT_ORDER_NO = xgoh.GIFT_ORDER_NO
+                                 AND xgid.GIFT_NO = xgi.GIFT_NO
+                                 
+                                 AND (xgi.PRODUCT_TYPE IS NULL OR xgi.PRODUCT_TYPE = '1')
+                                 
+				                 AND xgoh.gift_order_no = hf.gift_order_no
+				                 AND xgoh.status        = hf.status
+				                 AND xgoh.reg_date      = hf.first_reg_date
+				                 AND hf.order_seq       = 1		
+                              )
+                       WHERE SEQ_SUB_NO IS NULL
+
+                       UNION ALL
+
+					   <!-- 사용내역 : 사이렌오더 -->
+                       SELECT SKU_NO,
+                              AMT,
+                              STATUS,
+                              CUSTOM_AMT,
+                              USE_TYPE
+                       FROM (
+                                SELECT xgid.SKU_NO,
+                                       xgid.ITEM_SEQ,
+                                       xgi.GND_AMOUNT              AS AMT,
+                                       DECODE(xgoh.STATUS,
+                                       'H02', 'USE',
+                                       'H12', 'USECANCEL')         AS STATUS,
+                                       SUM(DECODE(xgid.ITEM_SEQ, '1', 0, xgid.GND_AMOUNT)) OVER ( PARTITION BY xgi.GIFT_NO, xgoh.STATUS ) AS CUSTOM_AMT,
+									   ( CASE WHEN xgoh.status = 'H02' OR (xgoh.status = 'H12' AND xgoh.use_type != ' ') THEN xgoh.use_type
+											  ELSE (
+													 SELECT use_type
+													   FROM xo_gift_order_history oh
+													  WHERE oh.gift_order_no = xgoh.gift_order_no
+														AND oh.gift_no       = xgoh.gift_no
+														AND oh.order_no      = xgoh.order_no
+														AND oh.status        = 'H11'
+														AND ROWNUM           = 1              
+												   )
+										 END                    
+									   ) AS USE_TYPE
+                                  FROM XO_GIFT_ORDER_HISTORY  xgoh,
+                                       XO_GIFT_ISSUE##        xgi,
+                                       XO_GIFT_ISSUE_DETAIL   xgid
+                                 WHERE TO_DATE(#value#, 'YYYYMMDD')     <![CDATA[   <=    ]]>   xgoh.REG_DATE
+                                   AND xgoh.REG_DATE                    <![CDATA[   <     ]]>   TO_DATE(#value#, 'YYYYMMDD') + 1
+                                   AND xgoh.STATUS  IN ('H02', 'H12')
+                                   AND xgi.GIFT_NO  = xgoh.GIFT_NO
+                                   AND xgid.GIFT_NO = xgi.GIFT_NO
+
+                                   AND (xgi.PRODUCT_TYPE IS NULL OR xgi.PRODUCT_TYPE = '1')
+                                   AND xgoh.ORDER_NO     IS NOT NULL
+
+                       )
+                       WHERE ITEM_SEQ = 1
+                       
+                       UNION ALL
+
+					   <!-- 사용내역 : 매장 -->
+                       SELECT SKU_NO,
+                              AMT,
+                              STATUS,
+                              CUSTOM_AMT,
+                              USE_TYPE
+                       FROM (
+                                SELECT xgid.SKU_NO,
+                                       xgid.ITEM_SEQ,
+                                       xgi.GND_AMOUNT              AS AMT,
+                                       DECODE(xgoh.STATUS,
+                                       'H02', 'USE',
+                                       'H12', 'USECANCEL')         AS STATUS,
+                                       SUM(DECODE(xgid.ITEM_SEQ, '1', 0, xgid.GND_AMOUNT)) OVER ( PARTITION BY xgi.GIFT_NO, xgoh.STATUS ) AS CUSTOM_AMT,
+									   ( CASE WHEN xgoh.status = 'H02' OR (xgoh.status = 'H12' AND xgoh.use_type != ' ') THEN xgoh.use_type
+											  ELSE (
+													 SELECT use_type
+													   FROM xo_gift_order_history oh
+													  WHERE oh.gift_order_no = xgoh.gift_order_no
+														AND oh.gift_no       = xgoh.gift_no
+														AND oh.order_no      = xgoh.order_no
+														AND oh.status        = 'H11'
+														AND ROWNUM           = 1              
+												   )
+										 END                    
+									   ) AS USE_TYPE
+                                  FROM XO_GIFT_ORDER_HISTORY  xgoh,
+                                       ( SELECT DISTINCT
+                                                business_date, branch_code,      pos_number, pos_trd_number
+                                              , gift_no,       total_trd_amount, trd_amount
+                                           FROM XO_GIFT_MSR_TRD_LIST
+                                          WHERE business_date = #value#      
+                                       ) xgmtl,
+                                       XO_GIFT_ISSUE##        xgi,
+                                       XO_GIFT_ISSUE_DETAIL   xgid
+                                 WHERE TO_DATE(#value#, 'YYYYMMDD')     <![CDATA[   <=    ]]>   xgoh.REG_DATE
+                                   AND xgoh.REG_DATE                    <![CDATA[   <     ]]>   TO_DATE(#value#, 'YYYYMMDD') + 1
+                                   AND xgoh.STATUS  IN ('H02', 'H12')
+                                   
+                                   AND xgoh.ORDER_NO  IS NULL
+                                   AND xgoh.SALE_DATE = xgmtl.BUSINESS_DATE
+                                   AND xgoh.STORE_CD  = xgmtl.BRANCH_CODE
+                                   AND xgoh.POS_NO    = xgmtl.POS_NUMBER
+                                   AND xgoh.SEQ_NO    = xgmtl.POS_TRD_NUMBER
+                                   AND xgoh.GIFT_NO   = xgmtl.GIFT_NO                                   
+                                   
+                                   AND xgi.GIFT_NO  = xgoh.GIFT_NO
+                                   AND xgid.GIFT_NO = xgi.GIFT_NO
+
+                                   AND (xgi.PRODUCT_TYPE IS NULL OR xgi.PRODUCT_TYPE = '1')
+
+                       )
+                       WHERE ITEM_SEQ = 1                       
+
+                       UNION ALL
+
+                       <!--     환불목록    -->
+                       SELECT xgid.SKU_NO,
+                              xgr.REFUND_AMOUNT             AS AMT,
+                              DECODE(xgi.STATUS,
+                                     'G20', 'APPREFUND',
+                                     'G21', 'STOREREFUND')  AS STATUS,
+                              0                             AS CUSTOM_AMT,
+                              xgi.USE_TYPE
+                         FROM XO_GIFT_REFUND        xgr,
+                              XO_GIFT_ISSUE##       xgi,
+                              XO_GIFT_ISSUE_DETAIL  xgid
+                        WHERE TO_DATE(#value#, 'YYYYMMDD')    <![CDATA[   <=    ]]>   xgr.STATUS_DATE
+                          AND xgr.STATUS_DATE                 <![CDATA[   <     ]]>   TO_DATE(#value#, 'YYYYMMDD') + 1
+                          AND xgr.GIFT_NO       = xgi.GIFT_NO
+                          AND xgi.GIFT_NO       = xgid.GIFT_NO
+                          AND xgr.STATUS        = 'C'
+                          AND xgid.ITEM_SEQ     = 1
+
+						  AND (xgi.PRODUCT_TYPE IS NULL OR xgi.PRODUCT_TYPE = '1')
+              )
+    </insert>
+    <!--    사이렌기프트 일별 SKU별 판매사용 집계,  XO_STAT_GIFT_SKU_SALE_SUM  END   -->
+
+    <!--    사이렌기프트 일별 사용집계, XO_STAT_GIFT_USE_SUM        START   -->
+    <select id="xoGift.countXoStatGiftUseSum" resultClass="java.lang.Integer" parameterClass="java.lang.String">
+        SELECT COUNT(1) FROM XO_STAT_GIFT_USE_SUM WHERE STAT_DATE = #value#
+    </select>
+    <insert id="xoGift.saveXoStatGiftUseSum" parameterClass="java.lang.String">
+        INSERT
+          INTO XO_STAT_GIFT_USE_SUM (
+               STAT_DATE,
+               USE_BILL_CNT,        USE_CNT,            GIFT_PAY_AMT,        ADD_PAY_AMT,
+               USE_CANCEL_BILL_CNT, USE_CANCEL_CNT,     GIFT_PAY_CANCEL_AMT, ADD_PAY_CANCEL_AMT,
+               GIFT_USE_CNT,        TRANS_USE_CNT,
+               GIFT_USE_AMT,        TRANS_USE_AMT,
+               GIFT_USE_CANCEL_CNT, TRANS_USE_CANCEL_CNT,
+               GIFT_USE_CANCEL_AMT, TRANS_USE_CANCEL_AMT,
+               INSERT_DATE,         INSERT_USER,
+               
+               XO_USE_BILL_CNT,        XO_USE_CNT,            XO_GIFT_PAY_AMT,        XO_GIFT_ADD_AMT,
+               XO_USE_CANCEL_BILL_CNT, XO_USE_CANCEL_CNT,     XO_GIFT_PAY_CANCEL_AMT, XO_GIFT_ADD_CANCEL_AMT
+               
+        )
+        SELECT #value# AS STAT_DATE,
+
+               COUNT( DISTINCT CASE WHEN STATUS = 'H02' THEN TRADE_KEY END )                    AS USE_BILL_CNT,
+               NVL(SUM( CASE WHEN STATUS = 'H02' THEN USE_CNT END ), 0)                         AS USE_CNT,
+               NVL(SUM( CASE WHEN STATUS = 'H02' THEN GIFT_PAY_AMT END ), 0)                    AS GIFT_PAY_AMT,
+               NVL(SUM( CASE WHEN STATUS = 'H02' THEN (TOTAL_PAY_AMT - GIFT_PAY_AMT) END ), 0)  AS ADD_PAY_AMT,
+
+               COUNT( DISTINCT CASE WHEN STATUS = 'H12' THEN TRADE_KEY END )                    AS USE_CANCEL_BILL_CNT,
+               NVL(SUM( CASE WHEN STATUS = 'H12' THEN USE_CNT END ), 0)                         AS USE_CANCEL_CNT,
+               NVL(SUM( CASE WHEN STATUS = 'H12' THEN GIFT_PAY_AMT END ), 0)                    AS GIFT_PAY_CANCEL_AMT,
+               NVL(SUM( CASE WHEN STATUS = 'H12' THEN (TOTAL_PAY_AMT - GIFT_PAY_AMT) END ), 0)  AS ADD_PAY_CANCEL_AMT,
+
+               NVL(SUM( CASE WHEN USE_TYPE = '1' AND STATUS = 'H02' THEN USE_CNT END ), 0)      AS GIFT_USE_CNT,
+               NVL(SUM( CASE WHEN USE_TYPE = '2' AND STATUS = 'H02' THEN USE_CNT END ), 0)      AS TRANS_USE_CNT,
+               NVL(SUM( CASE WHEN USE_TYPE = '1' AND STATUS = 'H02' THEN GIFT_PAY_AMT END ), 0) AS GIFT_USE_AMT,
+               NVL(SUM( CASE WHEN USE_TYPE = '2' AND STATUS = 'H02' THEN GIFT_PAY_AMT END ), 0) AS TRANS_USE_AMT,
+
+               NVL(SUM( CASE WHEN USE_TYPE = '1' AND STATUS = 'H12' THEN USE_CNT END ), 0)      AS GIFT_USE_CANCEL_CNT,
+               NVL(SUM( CASE WHEN USE_TYPE = '2' AND STATUS = 'H12' THEN USE_CNT END ), 0)      AS TRANS_USE_CANCEL_CNT,
+               NVL(SUM( CASE WHEN USE_TYPE = '1' AND STATUS = 'H12' THEN GIFT_PAY_AMT END ), 0) AS GIFT_USE_CANCEL_AMT,
+               NVL(SUM( CASE WHEN USE_TYPE = '2' AND STATUS = 'H12' THEN GIFT_PAY_AMT END ), 0) AS TRANS_USE_CANCEL_AMT,
+
+               SYSDATE      AS INSERT_DATE,
+               'XO_BATCH'   AS INSERT_USER,
+               
+               COUNT( DISTINCT CASE WHEN STATUS = 'H02' AND USE_KIND = '1'  THEN TRADE_KEY END )                    AS XO_USE_BILL_CNT,
+               NVL(SUM( CASE WHEN STATUS = 'H02' AND USE_KIND = '1'  THEN USE_CNT END ), 0)                         AS XO_USE_CNT,
+               NVL(SUM( CASE WHEN STATUS = 'H02' AND USE_KIND = '1'  THEN GIFT_PAY_AMT END ), 0)                    AS XO_GIFT_PAY_AMT,
+               NVL(SUM( CASE WHEN STATUS = 'H02' AND USE_KIND = '1'  THEN (TOTAL_PAY_AMT - GIFT_PAY_AMT) END ), 0)  AS XO_GIFT_ADD_AMT,
+
+               COUNT( DISTINCT CASE WHEN STATUS = 'H12' AND USE_KIND = '1'  THEN TRADE_KEY END )                    AS XO_USE_CANCEL_BILL_CNT,
+               NVL(SUM( CASE WHEN STATUS = 'H12' AND USE_KIND = '1'  THEN USE_CNT END ), 0)                         AS XO_USE_CANCEL_CNT,
+               NVL(SUM( CASE WHEN STATUS = 'H12' AND USE_KIND = '1'  THEN GIFT_PAY_AMT END ), 0)                    AS XO_GIFT_PAY_CANCEL_AMT,
+               NVL(SUM( CASE WHEN STATUS = 'H12' AND USE_KIND = '1'  THEN (TOTAL_PAY_AMT - GIFT_PAY_AMT) END ), 0)  AS XO_GIFT_ADD_CANCEL_AMT
+               
+          FROM (
+                    (
+                       <!--         사이렌오더 결제/취소 목록      -->
+					   SELECT TRADE_KEY
+					        , STATUS
+							, USE_CNT
+							, GIFT_PAY_AMT
+							, DECODE(ROW_NUMBER() OVER (PARTITION BY TRADE_KEY, STATUS ORDER BY USE_TYPE), 1, TOTAL_PAY_AMT, 0) AS TOTAL_PAY_AMT
+							, USE_TYPE
+							, USE_KIND
+					     FROM (
+							   SELECT DISTINCT
+									  TRADE_KEY,
+									  STATUS,
+									  COUNT(GIFT_NO)  OVER (PARTITION BY TRADE_KEY, STATUS, USE_TYPE) AS USE_CNT,
+									  SUM(GND_AMOUNT) OVER (PARTITION BY TRADE_KEY, STATUS, USE_TYPE) AS GIFT_PAY_AMT,
+									  TOTAL_PAY_AMT,
+									  USE_TYPE,
+									  USE_KIND
+								 FROM (
+									   SELECT (xgoh.SALE_DATE || xgoh.STORE_CD || xgoh.POS_NO || xgoh.SEQ_NO) AS TRADE_KEY,
+											  xgoh.STATUS,
+											  xgi.GIFT_NO,
+											  xgi.GND_AMOUNT,
+											  xo.TOTAL_PAY_AMT,
+											   ( CASE WHEN xgoh.status = 'H02' OR (xgoh.status = 'H12' AND xgoh.use_type != ' ') THEN xgoh.use_type
+													  ELSE (
+															 SELECT use_type
+															   FROM xo_gift_order_history oh
+															  WHERE oh.gift_order_no = xgoh.gift_order_no
+																AND oh.gift_no       = xgoh.gift_no
+																AND oh.order_no      = xgoh.order_no
+																AND oh.status        = 'H11'
+																AND ROWNUM           = 1              
+														   )
+												 END                    
+											   ) AS USE_TYPE,
+											   ( CASE WHEN xgoh.status = 'H02' OR (xgoh.status = 'H12' AND xgoh.use_kind != ' ') THEN xgoh.use_kind
+													  ELSE (
+															 SELECT use_kind
+															   FROM xo_gift_order_history oh
+															  WHERE oh.gift_order_no = xgoh.gift_order_no
+																AND oh.gift_no       = xgoh.gift_no
+																AND oh.order_no      = xgoh.order_no
+																AND oh.status        = 'H11'
+																AND ROWNUM           = 1              
+														   )
+												 END                    
+											   ) AS USE_KIND
+										 FROM XO_GIFT_ORDER_HISTORY xgoh,
+											  XO_ORDER##            xo,
+											  XO_GIFT_ISSUE##       xgi
+										WHERE TO_DATE(#value#, 'YYYYMMDD')    <![CDATA[   <=      ]]>   xgoh.REG_DATE
+										  AND xgoh.REG_DATE                   <![CDATA[   <       ]]>   TO_DATE(#value#, 'YYYYMMDD') + 1
+										  AND xgoh.ORDER_NO     = xo.ORDER_NO
+										  AND xgoh.GIFT_NO      = xgi.GIFT_NO
+										  AND xgoh.STATUS       IN ('H02', 'H12')
+										  AND xgoh.ORDER_NO     IS NOT NULL						 
+									  )
+						      )
+                    )
+
+        UNION ALL
+                    (
+                       <!--         매장거래 결제/취소 목록       -->
+					   SELECT TRADE_KEY
+					        , STATUS
+							, USE_CNT
+							, GIFT_PAY_AMT
+							, DECODE(ROW_NUMBER() OVER (PARTITION BY TRADE_KEY, STATUS ORDER BY USE_TYPE), 1, TOTAL_PAY_AMT, 0) AS TOTAL_PAY_AMT
+							, USE_TYPE
+							, USE_KIND
+					     FROM (
+							   SELECT DISTINCT
+									  TRADE_KEY,
+									  STATUS,
+									  COUNT(GIFT_NO) OVER (PARTITION BY TRADE_KEY, STATUS, USE_TYPE) AS USE_CNT,
+									  SUM(TRD_AMOUNT) OVER (PARTITION BY TRADE_KEY, STATUS, USE_TYPE) AS GIFT_PAY_AMT,
+									  TOTAL_TRD_AMOUNT AS TOTAL_PAY_AMT,
+									  USE_TYPE,
+									  USE_KIND
+								FROM (
+										SELECT DISTINCT
+											   TRADE_KEY,
+											   DECODE(SIGN(SUM(DECODE(STATUS, 'H02', 1, 'H12', -1)) over (PARTITION BY TRADE_KEY, USE_TYPE, GIFT_NO)), 1, 'H02', 0, 'VOID', -1, 'H12') as STATUS,
+											   GIFT_NO,
+											   TRD_AMOUNT,
+											   TOTAL_TRD_AMOUNT,
+											   USE_TYPE,
+											   USE_KIND
+										FROM (
+												SELECT (xgoh.SALE_DATE || xgoh.STORE_CD || xgoh.POS_NO || xgoh.SEQ_NO) AS TRADE_KEY,
+													   xgoh.STATUS,
+													   xgoh.GIFT_NO,
+													   xgmtl.TOTAL_TRD_AMOUNT,
+													   xgmtl.TRD_AMOUNT,
+													   ( CASE WHEN xgoh.status = 'H02' OR (xgoh.status = 'H12' AND xgoh.use_type != ' ') THEN xgoh.use_type
+															  ELSE (
+																	 SELECT use_type
+																	   FROM xo_gift_order_history oh
+																	  WHERE oh.gift_order_no = xgoh.gift_order_no
+																		AND oh.gift_no       = xgoh.gift_no
+																		AND oh.order_no      = xgoh.order_no
+																		AND oh.status        = 'H11'
+																		AND ROWNUM           = 1              
+																   )
+														 END                    
+													   ) AS USE_TYPE,
+													   ( CASE WHEN xgoh.status = 'H02' OR (xgoh.status = 'H12' AND xgoh.use_kind != ' ') THEN xgoh.use_kind
+															  ELSE (
+																	 SELECT use_kind
+																	   FROM xo_gift_order_history oh
+																	  WHERE oh.gift_order_no = xgoh.gift_order_no
+																		AND oh.gift_no       = xgoh.gift_no
+																		AND oh.order_no      = xgoh.order_no
+																		AND oh.status        = 'H11'
+																		AND ROWNUM           = 1              
+																   )
+														 END                    
+													   ) AS USE_KIND
+												  FROM XO_GIFT_ORDER_HISTORY xgoh,
+													   XO_GIFT_MSR_TRD_LIST xgmtl
+												 WHERE TO_DATE(#value#, 'YYYYMMDD')     <![CDATA[   <=      ]]>     xgoh.REG_DATE
+												   AND xgoh.REG_DATE                    <![CDATA[   <       ]]>     TO_DATE(#value#, 'YYYYMMDD') + 1
+												   AND xgoh.SALE_DATE   = xgmtl.BUSINESS_DATE
+												   AND xgoh.STORE_CD    = xgmtl.BRANCH_CODE
+												   AND xgoh.POS_NO      = xgmtl.POS_NUMBER
+												   AND xgoh.SEQ_NO      = xgmtl.POS_TRD_NUMBER
+												   AND xgoh.GIFT_NO     = xgmtl.GIFT_NO
+												   AND xgoh.STATUS      IN ('H02', 'H12')
+												   AND xgoh.ORDER_NO    IS NULL
+										)
+								   )
+								   WHERE STATUS IN ('H02', 'H12')
+						      )
+                    )
+        )
+    </insert>
+    <!--    사이렌기프트 일별 사용집계, XO_STAT_GIFT_USE_SUM        END   -->
+
+	<!-- e-Gift Item 일별 세트상품별 판매 집계,  XO_STAT_GIFT_SALE_SUM   START -->
+    <select id="xoGift.countXoStatGiftSetSkuSaleSum" resultClass="java.lang.Integer" parameterClass="java.lang.String">
+        SELECT COUNT(1) FROM XO_STAT_GIFT_SET_SKU_SALE_SUM WHERE STAT_DATE = #value#
+    </select>
+    <insert id="xoGift.saveXoStatGiftSetSkuSaleSum" parameterClass="java.lang.String">
+        INSERT
+          INTO XO_STAT_GIFT_SET_SKU_SALE_SUM (
+               STAT_DATE,               SET_PRODUCT_NO,
+               SALE_CNT,                SALE_AMT,
+               SALE_CANCEL_CNT,         SALE_CANCEL_AMT,
+               USE_CNT,                 GIFT_PAY_AMT,
+               USE_CANCEL_CNT,          GIFT_PAY_CANCEL_AMT,
+               GIFT_USE_CNT,            TRANS_USE_CNT, 
+               GIFT_USE_AMT,            TRANS_USE_AMT, 
+               GIFT_USE_CANCEL_CNT,     TRANS_USE_CANCEL_CNT, 
+               GIFT_USE_CANCEL_AMT,     TRANS_USE_CANCEL_AMT,
+               APP_REFUND_CNT,          APP_REFUND_AMT,
+               STORE_REFUND_CNT,        STORE_REFUND_AMT,
+               INSERT_DATE,             INSERT_USER
+        )
+              SELECT DISTINCT
+                     #value# AS STAT_DATE,
+                     PRODUCT_NO,
+
+                     COUNT  (CASE WHEN STATUS = 'PAYMENT'                        THEN   1 END) OVER (PARTITION BY PRODUCT_NO)     AS SALE_CNT,
+                     NVL(SUM(CASE WHEN STATUS = 'PAYMENT'                        THEN AMT END) OVER (PARTITION BY PRODUCT_NO), 0) AS SALE_AMT,
+
+                     COUNT  (CASE WHEN STATUS = 'PAYMENTCANCEL'                  THEN   1 END) OVER (PARTITION BY PRODUCT_NO)     AS SALE_CANCEL_CNT,
+                     NVL(SUM(CASE WHEN STATUS = 'PAYMENTCANCEL'                  THEN AMT END) OVER (PARTITION BY PRODUCT_NO), 0) AS SALE_CANCEL_AMT,
+                     
+                     COUNT  (CASE WHEN STATUS = 'USE'                            THEN   1 END) OVER (PARTITION BY PRODUCT_NO)     AS USE_CNT,
+                     NVL(SUM(CASE WHEN STATUS = 'USE'                            THEN AMT END) OVER (PARTITION BY PRODUCT_NO), 0) AS GIFT_PAY_AMT,
+
+                     COUNT  (CASE WHEN STATUS = 'USECANCEL'                      THEN   1 END) OVER (PARTITION BY PRODUCT_NO)     AS USE_CANCEL_CNT,
+                     NVL(SUM(CASE WHEN STATUS = 'USECANCEL'                      THEN AMT END) OVER (PARTITION BY PRODUCT_NO), 0) AS GIFT_PAY_CANCEL_AMT,
+
+                     COUNT  (CASE WHEN STATUS = 'USE'         AND USE_TYPE = '1' THEN   1 END) OVER (PARTITION BY PRODUCT_NO)     AS GIFT_USE_CNT,
+                     COUNT  (CASE WHEN STATUS = 'USE'         AND USE_TYPE = '2' THEN   1 END) OVER (PARTITION BY PRODUCT_NO)     AS TRANS_USE_CNT,
+                     
+                     NVL(SUM(CASE WHEN STATUS = 'USE'         AND USE_TYPE = '1' THEN AMT END) OVER (PARTITION BY PRODUCT_NO), 0) AS GIFT_USE_AMT,
+                     NVL(SUM(CASE WHEN STATUS = 'USE'         AND USE_TYPE = '2' THEN AMT END) OVER (PARTITION BY PRODUCT_NO), 0) AS TRANS_USE_AMT,
+
+                     COUNT  (CASE WHEN STATUS = 'USECANCEL'   AND USE_TYPE = '1' THEN   1 END) OVER (PARTITION BY PRODUCT_NO)     AS GIFT_USE_CANCEL_CNT,
+                     COUNT  (CASE WHEN STATUS = 'USECANCEL'   AND USE_TYPE = '2' THEN   1 END) OVER (PARTITION BY PRODUCT_NO)     AS TRANS_USE_CANCEL_CNT,
+                     
+                     NVL(SUM(CASE WHEN STATUS = 'USECANCEL'   AND USE_TYPE = '1' THEN AMT END) OVER (PARTITION BY PRODUCT_NO), 0) AS GIFT_USE_CANCEL_AMT,
+                     NVL(SUM(CASE WHEN STATUS = 'USECANCEL'   AND USE_TYPE = '2' THEN AMT END) OVER (PARTITION BY PRODUCT_NO), 0) AS TRANS_USE_CANCEL_AMT,
+
+                     COUNT  (CASE WHEN STATUS = 'APPREFUND'                      THEN   1 END) OVER (PARTITION BY PRODUCT_NO)     AS APP_REFUND_CNT,
+                     NVL(SUM(CASE WHEN STATUS = 'APPREFUND'                      THEN AMT END) OVER (PARTITION BY PRODUCT_NO), 0) AS APP_REFUND_AMT,
+
+                     COUNT  (CASE WHEN STATUS = 'STOREREFUND'                    THEN   1 END) OVER (PARTITION BY PRODUCT_NO)     AS STORE_REFUND_CNT,
+                     NVL(SUM(CASE WHEN STATUS = 'STOREREFUND'                    THEN AMT END) OVER (PARTITION BY PRODUCT_NO), 0) AS STORE_REFUND_AMT,
+
+                     sysdate    AS INSERT_DATE,
+                     'XO_BATCH' AS INSERT_USER
+
+              FROM (
+                      <!--      결제/취소/사용/사용취소 목록    -->
+                      SELECT PRODUCT_NO,
+                             AMT,
+                             STATUS,
+                             USE_TYPE
+                        FROM (
+                              SELECT xgi.PRODUCT_NO,
+                                     xgid.ITEM_SEQ,
+                                     xgi.GND_AMOUNT                     AS AMT,
+                                     DECODE(xgoh.STATUS,
+                                            'O20', 'PAYMENT',
+                                            'O30', 'PAYMENTCANCEL',
+                                            'O33', 'PAYMENTCANCEL')         AS STATUS,
+                                     xgi.USE_TYPE
+                                FROM XO_GIFT_ORDER_HISTORY  xgoh,
+                                     XO_GIFT_ISSUE##        xgi,
+                                     XO_GIFT_ISSUE_DETAIL   xgid
+				                    , (
+				                        SELECT hh.gift_order_no
+				                             , hh.status
+				                             , ROW_NUMBER()     OVER (PARTITION BY hh.GIFT_ORDER_NO, hh.STATUS ORDER BY hh.REG_DATE) AS order_seq
+				                             , MIN(hh.reg_Date) OVER (PARTITION BY hh.GIFT_ORDER_NO, hh.STATUS ORDER BY hh.REG_DATE) AS first_reg_date
+				                          FROM xo_gift_order_history hh
+				                             , (
+				                                SELECT gift_order_no
+				                                     , status
+				                                  FROM xo_gift_order_history h
+				                                 WHERE TO_DATE(#value#, 'YYYYMMDD') <![CDATA[   <=    ]]> h.REG_DATE
+				                                   AND h.REG_DATE                   <![CDATA[   <     ]]> TO_DATE(#value#,'YYYYMMDD') + 1 
+				                                   AND h.STATUS IN ('O20', 'O30', 'O33')     
+				                               ) hhh
+				                         WHERE hh.gift_order_no = hhh.gift_order_no
+				                           AND hh.status        = hhh.status  
+				                      ) hf   
+                               WHERE TO_DATE(#value#, 'YYYYMMDD')     <![CDATA[   <=    ]]>   xgoh.REG_DATE
+                                 AND xgoh.REG_DATE                    <![CDATA[   <     ]]>   TO_DATE(#value#, 'YYYYMMDD') + 1
+                                 AND xgoh.STATUS IN ('O20', 'O30', 'O33')
+                                 AND xgi.GIFT_ORDER_NO = xgoh.GIFT_ORDER_NO
+                                 AND xgid.GIFT_NO = xgi.GIFT_NO
+                                 
+                                 and xgi.PRODUCT_NO IS NOT NULL 
+                                 and xgi.PRODUCT_TYPE = '2'
+                                 
+				                 AND xgoh.gift_order_no = hf.gift_order_no
+				                 AND xgoh.status        = hf.status
+				                 AND xgoh.reg_date      = hf.first_reg_date
+				                 AND hf.order_seq       = 1	  
+                              )
+                       WHERE ITEM_SEQ = 1
+
+                       UNION ALL
+
+					   <!-- 사용내역 : 사이렌오더 -->
+                       SELECT PRODUCT_NO,
+                              AMT,
+                              STATUS,
+                              USE_TYPE
+                       FROM (
+                                SELECT xgi.PRODUCT_NO,
+                                       xgid.ITEM_SEQ,
+                                       xgi.GND_AMOUNT              AS AMT,
+                                       DECODE(xgoh.STATUS,
+                                       'H02', 'USE',
+                                       'H12', 'USECANCEL')         AS STATUS,
+									   ( CASE WHEN xgoh.status = 'H02' OR (xgoh.status = 'H12' AND xgoh.use_type != ' ') THEN xgoh.use_type
+											  ELSE (
+													 SELECT use_type
+													   FROM xo_gift_order_history oh
+													  WHERE oh.gift_order_no = xgoh.gift_order_no
+														AND oh.gift_no       = xgoh.gift_no
+														AND oh.order_no      = xgoh.order_no
+														AND oh.status        = 'H11'
+														AND ROWNUM           = 1              
+												   )
+										 END                    
+									   ) AS USE_TYPE
+                                  FROM XO_GIFT_ORDER_HISTORY  xgoh,
+                                       XO_GIFT_ISSUE##        xgi,
+                                       XO_GIFT_ISSUE_DETAIL   xgid
+                                 WHERE TO_DATE(#value#, 'YYYYMMDD')     <![CDATA[   <=    ]]>   xgoh.REG_DATE
+                                   AND xgoh.REG_DATE                    <![CDATA[   <     ]]>   TO_DATE(#value#, 'YYYYMMDD') + 1
+                                   AND xgoh.STATUS  IN ('H02', 'H12')
+                                   AND xgi.GIFT_NO  = xgoh.GIFT_NO
+                                   AND xgid.GIFT_NO = xgi.GIFT_NO
+                                   
+                                   and xgi.PRODUCT_NO IS NOT NULL 
+                                   and xgi.PRODUCT_TYPE = '2'
+                                   
+                                   AND xgoh.ORDER_NO     IS NOT NULL
+                       )
+                       WHERE ITEM_SEQ = 1
+
+                       UNION ALL
+                       
+					   <!-- 사용내역 : 매장 -->
+                       SELECT PRODUCT_NO,
+                              AMT,
+                              STATUS,
+                              USE_TYPE
+                       FROM (
+                                SELECT xgi.PRODUCT_NO,
+                                       xgid.ITEM_SEQ,
+                                       xgi.GND_AMOUNT              AS AMT,
+                                       DECODE(xgoh.STATUS,
+                                       'H02', 'USE',
+                                       'H12', 'USECANCEL')         AS STATUS,
+									   ( CASE WHEN xgoh.status = 'H02' OR (xgoh.status = 'H12' AND xgoh.use_type != ' ') THEN xgoh.use_type
+											  ELSE (
+													 SELECT use_type
+													   FROM xo_gift_order_history oh
+													  WHERE oh.gift_order_no = xgoh.gift_order_no
+														AND oh.gift_no       = xgoh.gift_no
+														AND oh.order_no      = xgoh.order_no
+														AND oh.status        = 'H11'
+														AND ROWNUM           = 1              
+												   )
+										 END                    
+									   ) AS USE_TYPE
+                                  FROM XO_GIFT_ORDER_HISTORY  xgoh,
+                                       ( SELECT DISTINCT
+                                                business_date, branch_code,      pos_number, pos_trd_number
+                                              , gift_no,       total_trd_amount, trd_amount
+                                           FROM XO_GIFT_MSR_TRD_LIST
+                                          WHERE business_date = #value#      
+                                       ) xgmtl,
+                                       XO_GIFT_ISSUE##        xgi,
+                                       XO_GIFT_ISSUE_DETAIL   xgid
+                                 WHERE TO_DATE(#value#, 'YYYYMMDD')     <![CDATA[   <=    ]]>   xgoh.REG_DATE
+                                   AND xgoh.REG_DATE                    <![CDATA[   <     ]]>   TO_DATE(#value#, 'YYYYMMDD') + 1
+                                   AND xgoh.STATUS  IN ('H02', 'H12')
+                                   
+                                   AND xgoh.ORDER_NO    IS NULL
+                                   AND xgoh.SALE_DATE   = xgmtl.BUSINESS_DATE
+                                   AND xgoh.STORE_CD    = xgmtl.BRANCH_CODE
+                                   AND xgoh.POS_NO      = xgmtl.POS_NUMBER
+                                   AND xgoh.SEQ_NO      = xgmtl.POS_TRD_NUMBER
+                                   AND xgoh.GIFT_NO     = xgmtl.GIFT_NO                                   
+                           
+                                   AND xgi.GIFT_NO  = xgoh.GIFT_NO
+                                   AND xgid.GIFT_NO = xgi.GIFT_NO
+                                   
+                                   and xgi.PRODUCT_NO IS NOT NULL 
+                                   and xgi.PRODUCT_TYPE = '2'
+
+                       )
+                       WHERE ITEM_SEQ = 1
+
+                       UNION ALL                       
+
+                       <!--     환불목록    -->
+                       SELECT xgi.product_no,
+                              xgr.REFUND_AMOUNT             AS AMT,
+                              DECODE(xgi.STATUS,
+                                     'G20', 'APPREFUND',
+                                     'G21', 'STOREREFUND')  AS STATUS,
+                              xgi.USE_TYPE
+                         FROM XO_GIFT_REFUND        xgr,
+                              XO_GIFT_ISSUE##       xgi,
+                              XO_GIFT_ISSUE_DETAIL  xgid
+                        WHERE TO_DATE(#value#, 'YYYYMMDD')    <![CDATA[   <=    ]]>   xgr.STATUS_DATE
+                          AND xgr.STATUS_DATE                 <![CDATA[   <     ]]>   TO_DATE(#value#, 'YYYYMMDD') + 1
+                          AND xgr.GIFT_NO       = xgi.GIFT_NO
+                          AND xgi.GIFT_NO       = xgid.GIFT_NO
+                          AND xgr.STATUS        = 'C'
+                          AND xgid.ITEM_SEQ     = 1
+                                                    
+                          and xgi.PRODUCT_NO IS NOT NULL 
+                          and xgi.PRODUCT_TYPE = '2'
+              )
+    </insert>
+	<!--    사이렌기프트 일별 사용집계, XO_STAT_GIFT_USE_SUM        END   -->
+
+	<!-- e-Gift Item 일별 세트구성품목 판매 집계,  XO_STAT_GIFT_COMP_SKU_SALE_SUM   START -->
+    <select id="xoGift.countXoStatGiftCompSkuSaleSum" resultClass="java.lang.Integer" parameterClass="java.lang.String">
+        SELECT COUNT(1) FROM XO_STAT_GIFT_COMP_SKU_SALE_SUM WHERE STAT_DATE = #value#
+    </select>
+    
+    <insert id="xoGift.saveXoStatGiftCompSkuSaleSum" parameterClass="java.lang.String">
+        INSERT
+          INTO XO_STAT_GIFT_COMP_SKU_SALE_SUM (
+               STAT_DATE,               SET_PRODUCT_NO,			SKU_NO,
+               SALE_QTY,				SALE_AMT,	
+               SALE_CANCEL_QTY,			SALE_CANCEL_AMT,	
+               INSERT_DATE,             INSERT_USER
+        )
+              SELECT DISTINCT
+                     #value# AS STAT_DATE,
+                     PRODUCT_NO,
+                     SKU_NO,
+
+                     COUNT(CASE WHEN STATUS = 'PAYMENT' THEN 1 END )        OVER (PARTITION BY PRODUCT_NO, SKU_NO)         AS SALE_QTY,
+                     NVL(SUM(CASE WHEN STATUS = 'PAYMENT' THEN AMT END )    OVER (PARTITION BY PRODUCT_NO, SKU_NO), 0)	   AS SALE_AMT,
+
+                     COUNT(CASE WHEN STATUS = 'PAYMENTCANCEL' THEN 1 END )      OVER (PARTITION BY PRODUCT_NO, SKU_NO)         AS SALE_CANCEL_QTY,
+                     NVL(SUM(CASE WHEN STATUS = 'PAYMENTCANCEL' THEN AMT END )  OVER (PARTITION BY PRODUCT_NO, SKU_NO), 0)     AS SALE_CANCEL_AMT,
+                     
+                     sysdate    AS INSERT_DATE,
+                     'XO_BATCH' AS INSERT_USER
+
+              FROM (
+                      <!--      결제/취소/사용/사용취소 목록    -->
+                      SELECT PRODUCT_NO,
+                      		 SKU_NO,
+                             AMT,
+                             STATUS,
+                             USE_TYPE
+                        FROM (
+                              SELECT xgi.PRODUCT_NO,
+                              		 xgid.SKU_NO,
+                                     xgid.ITEM_SEQ,
+                                     <!-- xgi.GND_AMOUNT                     AS AMT, -->
+                                     <!-- 결제한 세트 상품의 금액 대신 세트 상품의 각각 개별 SKU의 금액 조회 -->
+                                     (
+                                      SELECT wprice
+                                        FROM XO_SKU
+                                       WHERE sku_no = xgid.SKU_NO
+                                     ) AS AMT,
+                                     DECODE(xgoh.STATUS,
+                                            'O20', 'PAYMENT',
+                                            'O30', 'PAYMENTCANCEL',
+                                            'O33', 'PAYMENTCANCEL')         AS STATUS,
+                                     xgi.USE_TYPE
+                                FROM XO_GIFT_ORDER_HISTORY  xgoh,
+                                     XO_GIFT_ISSUE##        xgi,
+                                     XO_GIFT_ISSUE_DETAIL   xgid
+				                    , (
+				                        SELECT hh.gift_order_no
+				                             , hh.status
+				                             , ROW_NUMBER()     OVER (PARTITION BY hh.GIFT_ORDER_NO, hh.STATUS ORDER BY hh.REG_DATE) AS order_seq
+				                             , MIN(hh.reg_Date) OVER (PARTITION BY hh.GIFT_ORDER_NO, hh.STATUS ORDER BY hh.REG_DATE) AS first_reg_date
+				                          FROM xo_gift_order_history hh
+				                             , (
+				                                SELECT gift_order_no
+				                                     , status
+				                                  FROM xo_gift_order_history h
+				                                 WHERE TO_DATE(#value#, 'YYYYMMDD') <![CDATA[   <=    ]]> h.REG_DATE
+				                                   AND h.REG_DATE                   <![CDATA[   <     ]]> TO_DATE(#value#,'YYYYMMDD') + 1 
+				                                   AND h.STATUS IN ('O20', 'O30', 'O33')     
+				                               ) hhh
+				                         WHERE hh.gift_order_no = hhh.gift_order_no
+				                           AND hh.status        = hhh.status  
+				                      ) hf          
+                               WHERE TO_DATE(#value#, 'YYYYMMDD')     <![CDATA[   <=    ]]>   xgoh.REG_DATE
+                                 AND xgoh.REG_DATE                    <![CDATA[   <     ]]>   TO_DATE(#value#, 'YYYYMMDD') + 1
+                                 AND xgoh.STATUS IN ('O20', 'O30', 'O33')
+                                 AND xgi.GIFT_ORDER_NO = xgoh.GIFT_ORDER_NO
+                                 AND xgid.GIFT_NO = xgi.GIFT_NO
+                                 
+                                 <!-- 세트상품  -->
+                                 AND xgi.PRODUCT_NO IS NOT NULL 
+                                 AND xgi.PRODUCT_TYPE = '2'
+                                 AND xgid.SEQ_SUB_NO IS NULL
+
+				                 AND xgoh.gift_order_no = hf.gift_order_no
+				                 AND xgoh.status        = hf.status
+				                 AND xgoh.reg_date      = hf.first_reg_date
+				                 AND hf.order_seq       = 1	
+                              )
+              )
+    
+	</insert>
+
+    <!--    시효만료 기프트 조회     -->
+    <resultMap id="extinctionRM" class="java.util.HashMap">
+        <result property="gift_no"          column="GIFT_NO"            javaType="String"   />
+        <result property="issue_date"       column="ISSUE_DATE"         javaType="String"   />
+        <result property="expired_date"     column="EXPIRED_DATE"       javaType="String"   />
+        <result property="extinction_date"  column="EXTINCTION_DATE"    javaType="String"   />
+        <result property="extend_yn"        column="EXTEND_YN"          javaType="String"   />
+        <result property="gift_amount"      column="GIFT_AMOUNT"        javaType="Integer"  />
+        <result property="status"           column="STATUS"             javaType="String"   />
+    </resultMap>
+    <select id="xoGift.findExtinction" parameterClass="java.lang.String" resultMap="extinctionRM">
+        SELECT DISTINCT
+               xgi.GIFT_NO,
+               TO_CHAR(xgi.REG_DATE, 'YYYYMMDD')   AS ISSUE_DATE,
+               EXPIRE_DATE                         AS EXPIRED_DATE,
+               xgi.GND_AMOUNT                      AS GIFT_AMOUNT,
+               #value#                             AS EXTINCTION_DATE,
+               xgi.STATUS,
+               (
+                CASE
+                     <!--   H01(유효기간연장이력)이 하나이상 존재할 경우 'Y'    -->
+                     WHEN (SUM(DECODE(xgoh.STATUS, 'H01', 1, 0)) OVER (PARTITION BY xgi.GIFT_NO)) > 0 THEN 'Y'
+                     ELSE 'N'
+                END
+               ) AS EXTEND_YN
+          FROM XO_GIFT_ISSUE##          xgi,
+               XO_GIFT_ORDER_HISTORY    xgoh
+         WHERE ADD_MONTHS(TRUNC(xgi.REG_DATE), 60)  = TO_DATE(#value#, 'YYYYMMDD')
+           AND xgi.GIFT_NO  = xgoh.GIFT_NO
+           AND xgi.STATUS   = 'G00'
+    </select>
+
+    <!--   매장거래건 조회     -->
+    <select id="xoGift.findStoreTradeHistory"
+            parameterClass="java.lang.String"
+            resultClass="co.kr.istarbucks.xo.batch.common.dto.xo.GiftOrderHistoryDto">
+        SELECT SALE_DATE,
+               STORE_CD,
+               POS_NO,
+               SEQ_NO,
+               GIFT_NO
+          FROM XO_GIFT_ORDER_HISTORY xgoh
+         WHERE TO_DATE(#value#, 'YYYYMMDD')      <![CDATA[   <=  ]]>     xgoh.REG_DATE
+           AND xgoh.REG_DATE                     <![CDATA[   <   ]]>     TO_DATE(#value#, 'YYYYMMDD') + 1
+           AND xgoh.STATUS      IN ('H02', 'H12')
+           AND xgoh.ORDER_NO    IS NULL
+
+    </select>
+
+    <!--    매장거래 임시테이블 저장   -->
+    <insert id="xoGift.saveXoGiftMsrTrdList"
+            parameterClass="co.kr.istarbucks.xo.batch.common.dto.msr.TrdXoGiftList">
+        INSERT
+          INTO XO_GIFT_MSR_TRD_LIST (
+               BUSINESS_DATE,
+               BRANCH_CODE,
+               POS_NUMBER,
+               POS_TRD_NUMBER,
+               GIFT_NO,
+               TOTAL_TRD_AMOUNT,
+               TRD_AMOUNT,
+               REG_DATE
+        )
+        VALUES (
+               #business_date#,
+               #branch_code#,
+               #pos_number#,
+               #pos_trd_number#,
+               #gift_no#,
+               #total_trd_amount#,
+               #trd_amount#,
+               sysdate
+        )
+    </insert>
+
+    <!--    매장거래 임시테이블 저장   -->
+    <insert id="xoGift.saveAllXoGiftMsrTrdList"
+            parameterClass="java.util.List">
+        INSERT ALL
+        <iterate conjunction=" ">
+        INTO XO_GIFT_MSR_TRD_LIST (
+             BUSINESS_DATE,
+             BRANCH_CODE,
+             POS_NUMBER,
+             POS_TRD_NUMBER,
+             GIFT_NO,
+             TOTAL_TRD_AMOUNT,
+             TRD_AMOUNT,
+             REG_DATE
+        )
+        VALUES (
+             #[].business_date#,
+             #[].branch_code#,
+             #[].pos_number#,
+             #[].pos_trd_number#,
+             #[].gift_no#,
+             #[].total_trd_amount#,
+             #[].trd_amount#,
+             SYSDATE
+        )
+        </iterate>
+        SELECT * FROM DUAL
+    </insert>
+
+    <select id="xoGift.findExistInXoGiftOrderHistoryButNotInMsrTrdXoGiftList"
+            parameterClass="java.lang.String"
+            resultClass="co.kr.istarbucks.xo.batch.common.dto.xo.GiftOrderHistoryDto">
+        SELECT xgoh.SALE_DATE,
+               xgoh.STORE_CD,
+               xgoh.POS_NO,
+               xgoh.SEQ_NO,
+               xgoh.GIFT_NO
+          FROM XO_GIFT_ORDER_HISTORY xgoh
+         WHERE TO_DATE(#value#, 'YYYYMMDD')    <![CDATA[   <=  ]]>     xgoh.REG_DATE
+           AND xgoh.REG_DATE                   <![CDATA[   <   ]]>     TO_DATE(#value#, 'YYYYMMDD') + 1
+           AND xgoh.STATUS      IN ('H02', 'H12')
+           AND xgoh.ORDER_NO    IS NULL
+           AND (xgoh.SALE_DATE || xgoh.STORE_CD || xgoh.POS_NO || xgoh.SEQ_NO) NOT IN (
+                SELECT (xgmtl.BUSINESS_DATE || xgmtl.BRANCH_CODE || xgmtl.POS_NUMBER || xgmtl.POS_TRD_NUMBER)
+                  FROM XO_GIFT_MSR_TRD_LIST xgmtl
+        )
+    </select>
+
+    <!--    e-Gift Item 상시혜택 이벤트 조회 -->
+    <select id="xoGift.findPolicyGiftEventByEventTypeIsB"
+            resultClass="co.kr.istarbucks.xo.batch.common.dto.xo.PolicyGiftEventDto">
+        SELECT START_DATE, END_DATE, EVENT_NO
+          FROM XO_POLICY_GIFT_EVENT
+         WHERE EVENT_TYPE = 'B'
+             AND EVENT_NO='S000000013'
+    </select>
+
+    <!--    이벤트 기간내에 생성되었고,
+            취소가능 기한이 만료되었고,
+            이벤트 별을 지급받지 않은 정상상태의 선물 주문 목록 조회    -->
+    <select id="xoGift.findAllIrrevocableGiftOrder"
+            parameterClass="java.util.Map"
+            resultClass="co.kr.istarbucks.xo.batch.common.dto.xo.GiftOrderDto">
+        <![CDATA[
+        SELECT /*+ INDEX(xgp PK_XO_GIFT_PAYMENT) */
+               xgo.GIFT_ORDER_NO,
+               xgo.USER_ID
+          FROM XO_GIFT_ORDER## xgo
+         INNER JOIN XO_GIFT_PAYMENT## xgp
+            ON xgo.GIFT_ORDER_NO = xgp.GIFT_ORDER_NO
+           AND xgp.PAY_METHOD = 'S'
+         WHERE xgo.REVOCABLE_DATE = #date#
+           AND TO_DATE(#event.start_date#, 'YYYYMMDD') <=  xgo.REG_DATE
+           AND xgo.REG_DATE < TO_DATE(#event.end_date#, 'YYYYMMDD') + 1
+           AND xgo.STATUS = 'O20'
+           AND xgo.BENEFIT_YN IS NULL
+           AND xgo.MSR_USER_FLAG = 'Y'
+         GROUP BY xgo.GIFT_ORDER_NO, xgo.USER_ID
+        ]]>
+    </select>
+
+
+    <!--    '취소 기한 만료 별 지급' 결과 업데이트   -->
+    <update id="xoGift.updateGiftOrderBenefitYnToYContainsGiftOrderNo"
+            parameterClass="java.util.List">
+        UPDATE XO_GIFT_ORDER##
+           SET BENEFIT_YN = 'Y'
+         WHERE GIFT_ORDER_NO IN
+        <iterate open="(" close=")" conjunction=",">
+               #[].gift_order_no#
+        </iterate>
+           AND STATUS = 'O20'
+           AND BENEFIT_YN IS NULL
+           AND MSR_USER_FLAG = 'Y'
+    </update>
+</sqlMap>

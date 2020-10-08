@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMapConfig PUBLIC "-//iBATIS.com//DTD SQL Map Config 2.0//EN" "http://www.ibatis.com/dtd/sql-map-config-2.dtd">
+
+<sqlMapConfig>
+	<properties resource="jdbc.properties" />
+	
+	<settings
+		cacheModelsEnabled="true"
+		enhancementEnabled="true"
+		lazyLoadingEnabled="false"
+		useStatementNamespaces="false"
+		maxSessions="128"
+		maxTransactions="32"
+		maxRequests="512"
+		/>
+	  
+		
+	<transactionManager type="JDBC" >
+		<dataSource type="DBCP">
+			<property name="JDBC.Driver"					value="${oracle.jdbc.driverClassName}"/>
+			<property name="JDBC.ConnectionURL" 			value="${msr.oracle.jdbc.url}"/>
+			<property name="JDBC.Username"					value="${msr.oracle.jdbc.username}"/>
+			<property name="JDBC.Password"					value="${msr.oracle.jdbc.password}"/>
+			<property name="JDBC.DefaultAutoCommit"         value="false" />
+			<!--OPTIONAL PROPERTIES BELOW -->
+			<property name="Pool.MaximumActiveConnections"	value="${oracle.jdbc.maxActive}"/>
+			<property name="Pool.MaximumIdleConnections"	value="${oracle.jdbc.maxIdle}"/>
+			<property name="Pool.MaximumWait"				value="${oracle.jdbc.maxWait}"/>
+			<property name="Pool.ValidationQuery"			value="${oracle.jdbc.validationQuery}"/>			
+		</dataSource>
+	</transactionManager>	
+	
+	<sqlMap resource="sqlmapXO/paymentcancelMsr.xml" />
+	<sqlMap resource="sqlmapXO/sms.xml" />
+	<sqlMap resource="sqlmapXO/daemonLog.xml" />
+	<sqlMap resource="sqlmapXO/monitor.xml" />
+	
+	<sqlMap resource="sqlmapMSR/coupon.xml" />
+	<sqlMap resource="sqlmapMSR/mail.xml" />
+	
+	<sqlMap resource="sqlmapMSR/nonMember.xml" />
+
+	<sqlMap resource="sqlmapMSR/xoGiftMsr.xml"/>
+	
+	<sqlMap resource="sqlmapMSR/openPush.xml"/>
+	
+	<sqlMap resource="sqlmapMSR/xoGiftMsr2.xml"/>
+	
+	<sqlMap resource="sqlmapMSR/dvsnMsg.xml"/>
+	
+	<sqlMap resource="sqlmapMSR/member.xml"/>
+
+</sqlMapConfig>	

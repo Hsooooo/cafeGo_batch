@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="reserveSendNoticeXo">
+	<resultMap class="java.util.HashMap" id="targetInfoMap">
+		<result property="GIFT_ORDER_NO"	column="GIFT_ORDER_NO"		javaType="java.lang.String"/>
+		<result property="USER_ID" 			column="USER_ID" 			javaType="java.lang.String"/>
+		<result property="USER_NAME" 		column="USER_NAME" 			javaType="java.lang.String"/>
+		<result property="RECEIVER_MOBILE" 	column="RECEIVER_MOBILE"	javaType="java.lang.String"/>
+		<result property="RESERVE_TIME" 	column="RESERVE_TIME" 	   	javaType="java.lang.String"/>
+		<result property="SEND_METHOD" 		column="SEND_METHOD" 	   	javaType="java.lang.String"/>
+		<result property="O_SEND_TYPE" 		column="O_SEND_TYPE"		javaType="java.lang.String"/>
+		<result property="MT_PR" 			column="MT_PR"				javaType="java.lang.String"/>
+		<result property="L_SEND_TYPE" 		column="L_SEND_TYPE"		javaType="java.lang.String"/>
+		<result property="MSG_STATUS" 		column="MSG_STATUS"			javaType="java.lang.String"/>
+	</resultMap>
+	
+	<!-- 만기 알림 대상 조회 -->
+	<select id="reserveSendNoticeXo.getReserveSendPostNoticeTarget" parameterClass="java.util.Map" resultMap="targetInfoMap">
+		SELECT GIFT_ORDER_NO, USER_ID, USER_NAME, RECEIVER_MOBILE, RESERVE_TIME, SEND_METHOD, O_SEND_TYPE, MT_PR, L_SEND_TYPE, MSG_STATUS
+		  FROM (
+				SELECT XGO.GIFT_ORDER_NO,
+				       XGO.USER_ID,
+				       XGO.USER_NAME,
+				       XX1.DEC_VARCHAR2_SEL(XGO.RECEIVER_MOBILE, 10, 'PHONE') RECEIVER_MOBILE,
+				       XGO.RESERVE_TIME,
+				       XGO.SEND_METHOD,
+				       XGO.SEND_TYPE AS O_SEND_TYPE,       
+				       XGSLH.MT_PR,
+				       XGSLH.SEND_TYPE AS L_SEND_TYPE,
+				       MMS.MSG_STATUS
+				  FROM XO_GIFT_ORDER## XGO,
+				       XO_GIFT_SEND_LMS_HISTORY XGSLH,
+				       MMS.EM_MMT_TRAN MMS
+				 WHERE XGO.GIFT_ORDER_NO = XGSLH.GIFT_ORDER_NO
+				   AND XGSLH.MT_PR = MMS.MT_PR
+				   AND XGSLH.SEND_TYPE = 'S'
+				   AND XGO.SEND_METHOD = 'S' 
+				   AND XGO.SEND_TYPE = 'R'
+				   AND XGO.RESERVE_INBOX IS NULL
+				   <isEmpty property="thisDate">
+				   AND TO_CHAR(SYSDATE, 'YYYYMMDDHH24MI') > XGO.RESERVE_TIME
+				   </isEmpty>
+				   <isNotEmpty property="thisDate">
+				   AND XGO.RESERVE_TIME = #thisDate#
+				   </isNotEmpty>
+				)
+	</select>
+</sqlMap>

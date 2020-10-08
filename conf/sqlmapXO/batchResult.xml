@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="batchResult">
+	<select id="batchResult.getBtjbSrnm" parameterClass="java.util.Map" resultClass="java.lang.Integer">		          
+		SELECT NVL(MAX(BTJB_SRNM), 0) + 1 AS btjbSrnm
+		 FROM MSR_BTJB_RESULT
+		 WHERE BASE_DATE = #baseDate#
+		  AND BTJB_ID = #btjbId#      
+	</select>
+	
+	<insert id="batchResult.insert" parameterClass="java.util.Map">
+		INSERT INTO MSR_BTJB_RESULT
+		( BASE_DATE <!-- 기준일자 -->
+ 		, BTJB_ID <!-- 배치작업ID -->
+		, BTJB_SRNM <!-- 배치작업순번 -->
+		, BTJB_WORK_DSCRT <!-- 배치작업업무설명 -->
+		, BTJB_ST_CODE <!-- 배치작업상태코드 (I : 배치진행중 , E: 오류발생 ,  S: 성공) -->
+		, WRKNG_BEGIN_DTM <!-- 작업시작일시 -->
+		<isNotEmpty property="wrkngTrmntDtm">, WRKNG_TRMNT_DTM</isNotEmpty> <!-- 작업종료일시 -->
+		<isNotEmpty property="wrkngTrgCscnt">, WRKNG_TRG_CSCNT</isNotEmpty> <!-- 작업대상건수 -->
+		<isNotEmpty property="wrkngScsCscnt">, WRKNG_SCS_CSCNT</isNotEmpty> <!-- 작업성공건수 -->
+		<isNotEmpty property="wrkngFlrCscnt">, WRKNG_FLR_CSCNT</isNotEmpty> <!-- 작업실패건수 -->
+		<isNotEmpty property="pscsgCntnt">, PRCSG_CNTNT</isNotEmpty> <!-- 처리내용 -->
+		<isNotEmpty property="errorCntnt">, ERROR_CNTNT</isNotEmpty>  <!-- 오류내용 -->
+		<isNotEmpty property="pushYn">, PUSH_YN </isNotEmpty> <!-- 푸시여부 -->
+		)
+		VALUES
+		( #baseDate# <!-- 기준일자 -->
+		, #btjbId# <!-- 배치작업ID -->
+		, #btjbSrnm# 
+		, #btjbWorkDscrt# <!-- 배치작업업무설명 -->
+		, #btjbStCode# <!-- 배치작업상태코드 (I : 배치진행중 , E: 오류발생 ,  S: 성공) -->
+		, SYSDATE <!-- 작업시작일시 -->
+		<isNotEmpty property="wrkngTrmntDtm">, SYSDATE </isNotEmpty> <!-- 작업종료일시 -->
+		<isNotEmpty property="wrkngTrgCscnt">, #wrkngTrgCscnt# </isNotEmpty> <!-- 작업대상건수 -->
+		<isNotEmpty property="wrkngScsCscnt">, #wrkngScsCscnt# </isNotEmpty> <!-- 작업성공건수 -->
+		<isNotEmpty property="wrkngFlrCscnt">, #wrkngFlrCscnt# </isNotEmpty> <!-- 작업실패건수 -->
+		<isNotEmpty property="pscsgCntnt">, #pscsgCntnt# </isNotEmpty> <!-- 처리내용 -->
+		<isNotEmpty property="errorCntnt">, #errorCntnt# </isNotEmpty> <!-- 오류내용 -->
+		<isNotEmpty property="pushYn">, #pushYn# </isNotEmpty> <!-- 푸시여부 -->
+		)
+	</insert>
+	
+	<update id="batchResult.update" parameterClass="java.util.Map">
+		UPDATE MSR_BTJB_RESULT
+		SET  BTJB_ST_CODE = #btjbStCode# <!-- 배치작업상태코드 (I : 배치진행중 , E: 오류발생 ,  S: 성공) --> 
+		  <isNotEmpty property="btjbWorkDscrt">  
+		  , BTJB_WORK_DSCRT = #btjbWorkDscrt# <!-- 배치작업업무설명 -->
+		  </isNotEmpty>
+		  <isEqual property="btjbStCode" compareValue="S">
+		  , WRKNG_TRMNT_DTM = SYSDATE <!-- 작업종료일시 -->
+		  </isEqual>
+		  <isNotEmpty property="wrkngTrgCscnt">
+		  , WRKNG_TRG_CSCNT = #wrkngTrgCscnt# <!-- 작업대상건수 -->
+		  </isNotEmpty>
+		  <isNotEmpty property="wrkngScsCscnt">
+		  , WRKNG_SCS_CSCNT = #wrkngScsCscnt# <!-- 작업성공건수 -->
+		  </isNotEmpty>
+		  <isNotEmpty property="wrkngFlrCscnt">
+		  , WRKNG_FLR_CSCNT = #wrkngFlrCscnt# <!-- 작업실패건수 -->
+		  </isNotEmpty>
+		  <isNotEmpty property="pscsgCntnt">
+		  , PRCSG_CNTNT = #pscsgCntnt#<!-- 처리내용 -->
+		  </isNotEmpty>
+		  <isNotEmpty property="errorCntnt">
+		  , ERROR_CNTNT = #errorCntnt#<!-- 오류내용 -->
+		  </isNotEmpty>
+		  <isNotEmpty property="pushYn">
+		  , PUSH_YN = #pushYn# <!-- 푸시여부 -->
+		  </isNotEmpty>
+		WHERE BASE_DATE = #baseDate#
+		  AND BTJB_ID = #btjbId#
+		  AND BTJB_SRNM = #btjbSrnm# 
+	</update>
+</sqlMap>

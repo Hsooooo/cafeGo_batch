@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="orderMsg">
+    <!-- 사이렌오더 주문 상태 삭제 -->
+    <delete id="orderMsg.deleteOrderMsgM" parameterClass="java.lang.String">
+		DELETE
+		  FROM XO_ORDER_MSG_M
+         WHERE SROR_ORDER_NO = #orderNo#
+	</delete>
+	
+    <!-- 사이렌오더 주문 상태 삭제(batch) -->
+    <delete id="orderMsg.deleteOrderMsgBat" parameterClass="java.util.Map">
+		DELETE
+		  FROM XO_ORDER_MSG_M
+		 WHERE RGSTT_DTM <![CDATA[ < ]]> TRUNC(SYSDATE - #deleteDay#)
+	</delete>
+    
+    <!-- 사이렌오더 주문 상태 저장 -->
+	<insert id="orderMsg.insertOrderMsgM" parameterClass="java.util.Map">
+	    INSERT INTO XO_ORDER_MSG_M 
+	    	(SROR_ORDER_NO, ORDER_MSG_RGSTT_SRNM, ORDER_MSG_TYPE_CODE, ORDER_MSG_CNTNT, STORE_ADCL_WORDS_CNTNT, ORDER_ST_CODE, RGSTT_DTM)
+		VALUES 
+			(#orderNo#, #orderMsgRgsttSrnm#, #orederMsgTypeCode#, #orderMsgCntnt#, #storeAdclWordsCntnt#, #status#, SYSDATE)
+	</insert>
+	
+</sqlMap>

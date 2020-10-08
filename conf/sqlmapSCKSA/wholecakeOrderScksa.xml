@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="wholecakeOrderScksa">
+
+	<!-- 발주정보 등록(사이렌오더 서버 -> 영업정보) -->
+	<insert id="wholecakeOrderScksa.insertScksaWholecakeOrder" parameterClass="co.kr.istarbucks.xo.batch.common.dto.xo.WholecakeOrderDto">
+		INSERT INTO ICS_XO_ORDER_WCAKE (
+			   order_no
+			 , policy_cd
+			 , order_name
+			 , user_id
+			 , user_nm
+			 , receive_store_cd
+			 , receive_date
+			 , order_date
+			 , sales_order_date
+			 , revocable_date
+			 , total_qty
+			 , total_pay_amt
+			 , total_discount
+			 , total_coupon
+			 , total_item_amount
+			 , present_status
+			 , present_resend_yn
+			 , pay_date
+			 , pos_comp_flag
+			 , sales_order_comp_flag
+			 , use_flag
+			 , sales_trade_yn
+			 , insert_date
+			 , insert_user
+		 ) VALUES (
+			   #order_no#
+			 , #policy_cd#
+			 , UTL_RAW.CAST_TO_VARCHAR2(#order_name#)
+			 , #user_id#
+			 , UTL_RAW.CAST_TO_VARCHAR2(#user_name#)
+			 , #receive_store_cd#
+			 , #receive_date#
+			 , #order_date#
+			 , #sales_order_date#
+			 , #revocable_date#
+			 , #total_qty#
+			 , #total_pay_amt#
+			 , #total_discount#
+			 , #total_coupon#
+			 , #total_item_amount#
+			 , #present_status#
+			 , #present_resend_yn#
+			 , #pay_date#
+			 , 'N'
+			 , 'Y'
+			 , 'Y'
+			 , 'N'
+			 , SYSDATE
+			 , 'XO_BATCH'
+		 )
+	</insert>
+	
+	<!-- 발주정보 상세정보 등록(사이렌오더 서버 -> 영업정보) -->
+	<insert id="wholecakeOrderScksa.insertScksaWholecakeOrderDetail" parameterClass="co.kr.istarbucks.xo.batch.common.dto.xo.WholecakeOrderDto">
+		INSERT INTO ICS_XO_ORDER_DETAIL_WCAKE (
+		  	 order_no
+		   , item_seq
+		   , sku_no
+		   , price
+		   , qty
+		   , item_amount
+		   , discount
+		   , gnd_amount
+		   , cate_type
+		   , coupon_number
+		   , coupon_dc_amt
+		   , sck_coupon_no
+		   , status
+		   , order_fix_flag 
+		   , insert_date
+		   , insert_user
+ 	   ) VALUES ( 
+		     #order_no#
+		   , #item_seq#
+		   , #sku_no#
+		   , #price#
+		   , #qty#
+		   , #item_amount#
+		   , #discount#
+		   , #gnd_amount#
+		   , #cate_type#
+		   , #coupon_number#
+		   , #coupon_dc_amt#
+		   , #sck_coupon_no#
+		   , #status#
+		   , '0'
+		   , SYSDATE
+		   , 'XO_BATCH'
+		 )
+	</insert>
+</sqlMap>

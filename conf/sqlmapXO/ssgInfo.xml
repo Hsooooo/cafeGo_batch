@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="ssg">
+
+	<resultMap class="java.util.HashMap" id="infoMap">
+		<result property="ssg_cd" column="ssg_cd"/>
+		<result property="emp_num" column="emp_num"/>
+		<result property="ssg_name" column="ssg_name"/>
+        <result property="kor_name" column="kor_name"/>
+		<result property="convert_emp_num" column="convert_emp_num"/>
+        <result property="team_name" column="team_name"/>
+        <result property="emp_yn" column="emp_yn"/>
+	</resultMap>
+
+    <!-- GET SBC EMPLOYEES INFO -->
+    <!-- 2018.11.02. 스타벅스 임직원 사번이 8자리이고 "00"으로 시작하면 "00"을 제거하고 저장 (사원 인증 시스템 연동을 위해 블라섬 데이터와 맞춤) -->
+    <!-- 2018.11.06. 스타벅스 임직원 사번이 8자리이고 "10"으로 시작하면 "10"을 제거하고 저장. convert_emp_num 데이터는 "10" 포함된 상태로 유지 -->
+    <select id="ssg.getSbcInfo" resultMap="infoMap">
+		SELECT ssg_cd,
+		       CASE
+		          WHEN LENGTH (emp_num) = 8 AND SUBSTR (emp_num, 1, 2) = '00' THEN SUBSTR (emp_num, 3)
+		          WHEN LENGTH (emp_num) = 8 AND SUBSTR (emp_num, 1, 2) = '10' THEN SUBSTR (emp_num, 3)
+		          ELSE emp_num
+		       END AS emp_num,
+		       ssg_name, kor_name, team_name,
+		       fn_get_number_str (emp_num) AS convert_emp_num, emp_yn
+		  FROM (SELECT TRIM (ssgcd) AS ssg_cd,
+		               TRIM (UTL_RAW.cast_to_varchar2 (empnum)) AS emp_num,
+		               TRIM (UTL_RAW.cast_to_varchar2 (ssgname)) AS ssg_name,
+		               TRIM (UTL_RAW.cast_to_varchar2 (korname)) AS kor_name,
+		               TRIM (UTL_RAW.cast_to_varchar2 (storenm)) AS team_name,
+		               TRIM (emp_yn) AS emp_yn
+		          FROM scksa.v_xop_sbc@dblink_sck_xop)
+    </select>
+    
+    <!-- GET SSG EMPLOYEES INFO -->
+    <select id="ssg.getSsgInfo" resultMap="infoMap">
+		SELECT ssg_cd, emp_num, ssg_name, kor_name, '' AS team_name,
+		       fn_get_number_str (emp_num) AS convert_emp_num, emp_yn
+		  FROM (SELECT TRIM (ssgcd) AS ssg_cd,
+		               TRIM (UTL_RAW.cast_to_varchar2 (empnum)) AS emp_num,
+		               TRIM (UTL_RAW.cast_to_varchar2 (ssgname)) AS ssg_name,
+		               TRIM (UTL_RAW.cast_to_varchar2 (korname)) AS kor_name,
+		               TRIM (emp_yn) AS emp_yn
+		          FROM scksa.v_xop_ssg@dblink_sck_xop)
+    </select>
+    
+    <!-- DELETE SSG INFO -->
+	<delete id="ssg.deleteInfo"  parameterClass="java.util.Map">
+		DELETE FROM xo_ssg_info
+		<isEqual property="sbc_flag" compareValue="Y">WHERE ssg_cd = 'EE0'</isEqual>
+		<isEqual property="sbc_flag" compareValue="N">WHERE ssg_cd != 'EE0'</isEqual>
+	</delete>
+	
+	<!-- INSERT SSG INFO -->
+	<update id="ssg.insertInfo" parameterClass="java.util.Map">
+		INSERT INTO xo_ssg_info
+		            (ssg_cd
+		            , emp_num
+		            , reg_date
+		            <isNotEmpty property="ssg_name">, ssg_name</isNotEmpty>
+		            <isNotEmpty property="kor_name">, kor_name</isNotEmpty>
+		            <isNotEmpty property="convert_emp_num">, convert_emp_num</isNotEmpty>
+		            <isNotEmpty property="team_name">, team_name</isNotEmpty>
+		            , emp_yn
+		            )
+		     VALUES (#ssg_cd#
+		     		, #emp_num#
+		     		, SYSDATE
+		     		<isNotEmpty property="ssg_name">, #ssg_name#</isNotEmpty>
+		     		<isNotEmpty property="kor_name">, #kor_name#</isNotEmpty>
+		     		<isNotEmpty property="convert_emp_num">, #convert_emp_num#</isNotEmpty>
+		     		<isNotEmpty property="team_name">, #team_name#</isNotEmpty>
+		     		<isNotEmpty property="emp_yn">, #emp_yn#</isNotEmpty>
+		     		<isEmpty property="emp_yn">, 'Y'</isEmpty>
+		            )	
+	</update>
+	
+    <!-- DELETE USER EMP MAPPING INFO -->
+	<delete id="ssg.deleteUserEmpMappingInfo">
+		DELETE FROM xo_user_emp_mapp
+		      WHERE emp_num IN (
+		                      SELECT fn_get_number_str (emp_num)
+		                        FROM xo_user_emp_mapp
+		                      MINUS
+		                      SELECT convert_emp_num
+		                        FROM xo_ssg_info)
+	</delete>	
+</sqlMap>

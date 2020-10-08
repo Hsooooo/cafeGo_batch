@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="ezorder"> 
+	<resultMap class="java.util.HashMap" id="todayMap">
+		<result property="dbToday" column="dbToday"/>
+		<result property="firstDayFlag" column="firstDayFlag"/>
+	</resultMap>	
+	<select id="ezorder.getToday" resultMap="todayMap">
+		SELECT 
+		    TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI') AS dbToday 
+		    , DECODE(TRUNC(SYSDATE), TRUNC(SYSDATE, 'month'), 'Y', 'N' ) firstDayFlag
+		  FROM dual
+	</select> 
+<update id="ezorder.ezOrderInfo">
+<![CDATA[ 
+	    INSERT INTO xo_stat_ez_order_day
+		   (stat_date, total_order_cnt, total_item_amount, total_pay_amt )	 
+		SELECT to_char(xo.mod_date,'yyyymmdd') mod_date , count(*) total_order_cnt, sum(total_item_amount) total_item_amount, sum(total_pay_amt) total_pay_amt
+		  FROM xo_order## xo, xo_cart xc
+		WHERE xo.mod_date >= TO_DATE(TO_CHAR(SYSDATE -1,'YYYYMMDD'),'YYYYMMDD')
+		   AND xo.mod_date < TO_DATE(TO_CHAR(SYSDATE,'YYYYMMDD'),'YYYYMMDD')
+		   AND xo.status IN ('30', '31')
+		   AND xo.cart_no = xc.cart_no
+		   AND xc.status = '1'
+		   GROUP BY to_char(xo.mod_date,'yyyymmdd') 
+]]>
+</update>
+</sqlMap>

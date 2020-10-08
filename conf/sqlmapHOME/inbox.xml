@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="inbox">
+	<!-- 개인화 인박스 -->
+	<insert id="inbox.insertUserInBoxMsg" parameterClass="co.kr.istarbucks.xo.batch.common.dto.inbox.UserInboxDto">
+		<selectKey resultClass="java.lang.String" keyProperty="sui_index">
+			SELECT STB_USER_INBOX_SEQ.nextval sui_index FROM dual 
+		</selectKey>
+	
+		Insert into STB_USER_INBOX
+	   			  (SUI_INDEX, SUI_WEB_YN, SUI_APP_YN, SUI_USER_ID, SUI_TITLE, 
+	   			<isNotEmpty property="sui_url">
+	   			   SUI_URL,
+	   			</isNotEmpty>
+	   			<isNotEmpty property="sui_date">
+	   			   SUI_DATE,
+	   			</isNotEmpty>
+	   			<isNotEmpty property="sui_del_flag">
+	   			   SUI_DEL_FLAG,
+	   			</isNotEmpty>
+	   			<isNotEmpty property="sui_visit">
+	   			   SUI_VISIT,
+	   			</isNotEmpty>
+	   			<isNotEmpty property="sui_del_date">
+	   			   SUI_DEL_DATE,
+	   			</isNotEmpty>
+	   			   SUI_LINK_YN
+	   			   )
+		 	  Values
+		   		  ( #sui_index#, #sui_web_yn#, #sui_app_yn#, #sui_user_id#, #sui_title#,
+		   		<isNotEmpty property="sui_url">
+		   		   #sui_url#,
+		   		</isNotEmpty>
+		   		<isNotEmpty property="sui_date">
+		   		   #sui_date#,
+		   		</isNotEmpty>
+		   		<isNotEmpty property="sui_del_flag">
+		   		   #sui_del_flag#,
+		   		</isNotEmpty>
+		   		<isNotEmpty property="sui_visit">
+		   		   #sui_visit#,
+		   		</isNotEmpty> 
+		   		<isNotEmpty property="sui_del_date">
+		   		   #sui_del_date#,
+		   		</isNotEmpty>
+		   		   #sui_link_yn#
+		   		  )   			   
+	</insert>
+</sqlMap>

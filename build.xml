@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project basedir="." default="war.app">
+    <property environment="env"/>
+    	
+    <property name="ant.project.name" value="xobatch"/>
+	<property file="config/${active.profile}/ant_properties/build.properties"/>
+	<property name="target" value="${java.version}"/>
+	<property name="source" value="${java.version}"/>
+
+	<path id="app.lib.path">
+		<fileset dir="${source.lib.dir}">
+            <include name="*.jar"/>
+        </fileset>
+		<fileset dir="${jeus.lib.dir}">
+            <include name="*.jar"/>
+        </fileset>
+		<fileset dir="${java.jre.dir}">
+            <include name="**/*.jar"/>
+        </fileset>
+		<fileset dir="${jeus.lib.dir}">
+            <include name="*.jar"/>
+        </fileset>
+    </path>
+		
+	<path id="fd.lib.path">
+		<fileset dir="${jeus.lib.dir}">
+            <include name="*.jar"/>
+        </fileset>
+		<fileset dir="${fd.lib.dir}">
+            <include name="*.jar"/>
+        </fileset>
+		<fileset dir="${java.jre.dir}">
+            <include name="**/*.jar"/>
+        </fileset>
+		<fileset dir="${jeus.lib.dir}">
+            <include name="*.jar"/>
+        </fileset>
+    </path>
+
+		
+	<!-- 1. target Clear  -->
+	<target name="init">
+		<delete dir="${target.home.dir}"/>
+        <mkdir dir="${target.home.dir}"/>
+        <mkdir dir="${target.classes.dir}"/>
+        <mkdir dir="${target.conf.dir}"/>
+        <mkdir dir="${target.cmd.dir}"/>
+    </target>
+	<!-- 2. source copy  -->
+	<target name="copy.webapp" depends="init">
+		<copy toDir="${target.lib.dir}" failonerror="false">
+            <fileset dir="${source.lib.dir}" includes="**/*" />
+        </copy>
+		<copy toDir="${target.lib.dir}" failonerror="false">
+            <fileset dir="${fd.lib.dir}" includes="**/*" />
+        </copy>
+		<copy toDir="${target.conf.dir}" failonerror="false">
+            <fileset dir="${source.conf.dir}" includes="**/*" />
+        </copy>
+		<copy toDir="${target.cmd.dir}" failonerror="false">
+            <fileset dir="${source.cmd.dir}" includes="**/*" />
+        </copy>
+        <copy toDir="${target.conf.dir}" failonerror="false"  overwrite="true">
+            <fileset dir="${fd.src.dir}/resource" includes="**/*" />
+            <fileset dir="${fd.src.dir}/mapper" includes="**/*" />
+        </copy>
+	</target>
+	
+	<!-- 3. FD compile  -->	
+	<target name="compile.fd" depends="copy.webapp">
+		<javac fork="true" memoryInitialSize="256m" memoryMaximumSize="256m" debug="on" destdir="${target.classes.dir}" srcdir="${fd.src.dir}" encoding="UTF-8" executable="${java.home.dir}/bin/javac">
+            <classpath refid="fd.lib.path"/>
+        </javac>
+	</target>
+	
+	<!-- 4. APP compile  -->	
+	<target name="compile.app" depends="compile.fd">
+		<javac fork="true" memoryInitialSize="256m" memoryMaximumSize="256m" debug="on" destdir="${target.classes.dir}" srcdir="${source.src.dir}" encoding="EUC-KR" executable="${java.home.dir}/bin/javac">
+            <classpath refid="app.lib.path"/>
+        </javac>
+	</target>
+	
+	 <!-- 5. env copy -->
+    <target name="copy.env" depends="compile.app">
+    	<copy toDir="${target.home.dir}/conf/fdConfig" overwrite="true">
+            <fileset dir="${fd.home.dir}/deploy/${active.profile}" includes="**/*" />
+        </copy>
+        <copy toDir="${target.home.dir}" overwrite="true">
+            <fileset dir="${source.home.dir}/deploy/${active.profile}" includes="**/*" />
+        </copy>
+    	<copy toDir="${target.conf.dir}" overwrite="true">
+            <fileset dir="${fd.home.dir}/deploy/ibatis" includes="**/*" />
+        </copy>
+    </target>
+	
+	<!-- 5. APP war  -->		
+	<target name="war.app" depends="copy.env">
+	    <war 
+	       needxmlfile='false'
+	       destfile="${target.home.dir}/${ant.project.name}.war" 
+	       basedir="${target.home.dir}">
+	    </war>
+	    <mkdir dir="${target.home.dir}/${ant.project.name}"/>
+	    <copy toDir="${target.home.dir}/${ant.project.name}" failonerror="false">
+            <fileset dir="${target.home.dir}">
+                <exclude name="**/${ant.project.name}/**" />
+                <exclude name="${target.home.dir}/${ant.project.name}/${ant.project.name}.war" />
+                <exclude name="${ant.project.name}.war" />
+            </fileset>
+        </copy>
+    </target>
+</project>

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="rank">
+	
+	<select id="rank.getRankEdwIfCnt" resultClass="java.lang.Integer">
+		SELECT COUNT(*) AS CNT
+		  FROM XO_SELL_RANK_EDW_IF
+	</select>
+	
+	<delete id="rank.deleteRankEdw">
+		DELETE FROM XO_SELL_RANK_EDW
+	</delete>
+	
+	<!-- 사이렌오더 판매 대상 SKU만 저장 -->
+    <insert id="rank.insertRankEdw">
+		INSERT INTO xo_sell_rank_edw
+		            (age, sex, rnk, cate_cd, sku_no, cate_nm, sku_nm, sub_cate_cd,
+		             sub_cate_nm, prod_type, base_start_date, base_end_date,
+		             sell_count, insert_date)
+		   (SELECT DISTINCT edw.age, edw.sex, edw.rnk, edw.cate_cd, edw.sku_no,
+		                    edw.cate_nm, NVL (xs.xo_disp_name, edw.sku_nm) AS sku_nm,
+		                    edw.sub_cate_cd, edw.sub_cate_nm,
+		                    xc.cate_type AS prod_type, edw.base_start_date,
+		                    edw.base_end_date, edw.sell_count, edw.insert_date
+		               FROM xo_sell_rank_edw_if edw,
+		                    xo_sku xs,
+		                    xo_cate_sku xcs,
+		                    xo_cate xc
+		              WHERE edw.sku_no = xs.sku_no
+		                AND xcs.sku_no =
+		                       (SELECT DECODE (hot_yn, 'Y', delegate_sku2, delegate_sku)
+		                          FROM xo_sku
+		                         WHERE sku_no = edw.sku_no)
+		                AND xcs.cate_cd = xc.cate_cd
+		                AND xs.sal_flag = 'Y'
+		                AND xcs.use_yn = 'Y'
+		                AND xc.use_yn = 'Y'
+		                AND xc.cate_cd NOT IN ('X0000020', 'X0000044', 'X0000018'))
+	</insert>
+</sqlMap>

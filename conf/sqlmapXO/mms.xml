@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="mms">
+	
+	<!-- MMS MT 첨부 파일 등록  -->
+	<insert id="mms.insertEmMmtFile" parameterClass="co.kr.istarbucks.xo.batch.common.dto.xo.EmMmtFileDto" >
+		<selectKey resultClass="java.lang.Long" keyProperty="attach_file_group_key">
+			SELECT MMS.SQ_EM_MMT_FILE_01.NEXTVAL AS attach_file_group_key
+			  FROM DUAL
+		</selectKey>	
+		INSERT /* [mms.xml][mms.insertEmMmtFile] */
+		  INTO MMS.EM_MMT_FILE ( 
+		       attach_file_group_key, 
+		       attach_file_group_seq, 
+		       attach_file_seq,
+		       attach_file_subpath, 
+		       attach_file_name, 
+		       reg_date
+		       ) 
+		VALUES ( 
+		       TO_NUMBER(#attach_file_group_key#),  <!--  파일 그룹키 -->
+		       '1',                          <!-- 파일 그룹키 순번 -->
+		       '1',                          <!-- 파일 순번(키) -->
+		       #attach_file_subpath#,        <!-- 파일 하위 경로 -->
+		       #attach_file_name#,           <!-- 파일이름 -->
+		       SYSDATE
+		       )     
+	</insert> 
+
+	<!-- MMS 발송 QUEUE 등록  --> <!-- 강동원 -->
+	<insert id="mms.insertEmMmtTran" parameterClass="co.kr.istarbucks.xo.batch.common.dto.xo.SmtTranDto" >
+		<selectKey resultClass="java.lang.Long" keyProperty="mt_pr">
+			SELECT MMS.SQ_EM_MMT_TRAN_01.NEXTVAL AS mt_pr
+			  FROM DUAL
+		</selectKey>	
+		INSERT /* [mms.xml][mms.insertEmMmtTran] */
+		  INTO MMS.EM_MMT_TRAN ( 	
+		       mt_pr,
+		       date_client_req,
+		       subject,
+		       content,
+		       attach_file_group_key,
+		       callback,
+		       recipient_num,
+		       service_type,
+		       xo_order_no,
+		       reg_date,
+		       CALLBACK_ENC, 
+			   RECIPIENT_NUM_ENC 
+		       <isNotEmpty property="user_id" prepend=",">user_id</isNotEmpty>
+		       ) 
+		VALUES ( 
+		       TO_NUMBER(#mt_pr#),                   <!-- 메시지 고유 아이디 -->
+		       SYSDATE,                              <!-- 전송 예약 시간 -->
+		       #subject#,                            <!-- 메시지 제목 -->
+		       #content#,                            <!-- 전송 메시지 -->
+		       TO_NUMBER(#attach_file_group_key#),   <!-- 첨부 파일 그룹키(생략시 LMS) -->
+		       #callback#,                           <!-- 발신자 전화번호 -->
+		       #recipient_num#,                      <!-- 수신자 전화 번호 -->
+		       #service_type#,                       <!-- 서비스 메시지 전송 타입 {2-MMS MT, 3-LMS} -->
+		       #xo_order_no#,                        <!-- 사이렌오더 주문(예약)번호 -->
+		       SYSDATE,
+		       XX1.ENC_VARCHAR2_INS(NVL(#callback#,'00000000000'),'10','PHONE') ,
+			   XX1.ENC_VARCHAR2_INS(#recipient_num#,'10','PHONE')
+		       <isNotEmpty property="user_id" prepend=",">#user_id#</isNotEmpty>	<!-- 사용자아이디 -->
+		       )
+	</insert>
+	
+    <!-- SMS 발송 요청(계정 : MMS) --> <!-- 강동원 -->
+	<insert id="mms.insertSmtTran" parameterClass="co.kr.istarbucks.xo.batch.common.dto.xo.SmtTranDto">
+		<selectKey resultClass="java.lang.Long" keyProperty="mt_pr">
+			SELECT MMS.SQ_EM_SMT_TRAN_01.NEXTVAL AS mt_pr
+			  FROM DUAL
+		</selectKey>
+		 INSERT INTO mms.em_smt_tran (
+	                  mt_pr              <!-- 메시지 고유 아이디 -->
+	                , priority           <!-- 전송 우선 순위{VF-Very Fast, F-Fast, S-Slow} -->
+	                , date_client_req    <!-- 전송 예약 시간 -->
+	                , content            <!-- 전송 메시지 -->
+	                , callback           <!-- 발신자 전화 번호 -->
+	                , service_type       <!-- 서비스 메시지 전송 타입{0-SMS MT, 1-CALLBACK URL, 2-MMS MT, 3-LMS} -->
+	                , broadcast_yn       <!-- 동보 발송 유무{'N' : 단일건, 'Y' :동보건} -->
+	                , msg_status         <!-- 메시지 상태{1-전송대기, 2-결과대기, 3-완료} -->
+	                , recipient_num      <!-- 수신자 전화 번호 -->
+	                , reg_date           <!-- 데이터 등록일자 -->
+	                , RECIPIENT_NUM_ENC
+			) VALUES (
+	                  TO_NUMBER(#mt_pr#)
+	                , #priority#
+	                , SYSDATE
+	                , #content#
+	                , #callback#
+	                , '0'
+	                , 'N'
+	                , '1'
+	                , #recipient_num#
+	                , SYSDATE
+	                , XX1.ENC_VARCHAR2_INS(#recipient_num#,'10','PHONE')
+			)
+	</insert>	
+</sqlMap>

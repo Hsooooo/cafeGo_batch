@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="sms">
+
+	<resultMap id="statMap" class="java.util.HashMap">
+		<result property="couponCode" column="coupon_code" />
+		<result property="couponName" column="coupon_name" />
+		<result property="couponCount" column="count" javaType="String" />	
+	</resultMap>
+	<!--  강동원 -->
+	<insert id="sms.insertSMS" parameterClass="java.util.Map">
+		<selectKey resultClass="java.lang.String" keyProperty="seq">
+			SELECT SEQ_SMS.NEXTVAL FROM DUAL 
+		</selectKey>
+		INSERT INTO SMSDATA##(
+			SEQNO,
+			INDATE,
+			INTIME,
+			MEMBER,
+			SENDID,
+			SENDNAME,
+			RPHONE1,
+			RPHONE2,
+			RPHONE3,
+			SPHONE1,
+			SPHONE2,
+			SPHONE3,
+			MSG,
+			RDATE,
+			RTIME,
+			RESULT,
+			KIND,
+			INDVL_P1NO,
+	     	INDVL_P2NO,
+			INDVL_P3NO
+		)
+		VALUES(
+			#seq#,
+			#inDate#,
+			#inTime#,
+			#seq#,
+			#sendid#,
+			#sendName#,
+			xx1.enc_char_ins(#Rphone1#, 11, 'PHONE'),
+			xx1.enc_char_ins(#Rphone2#, 11, 'PHONE'),
+			xx1.enc_char_ins(#Rphone3#, 11, 'PHONE'),
+			#Sphone1#,
+			#Sphone2#,
+			#Sphone3#,
+			#msg#,
+			#rdate#,
+			#rtime#,
+			#result#,
+			#kind#,
+			XX1.ENC_VARCHAR2_INS(#sphone1#, 10, 'PHONE'),
+	        XX1.ENC_VARCHAR2_INS(#sphone2#, 10, 'PHONE'),
+	        XX1.ENC_VARCHAR2_INS(#sphone3#, 10, 'PHONE')
+		)
+	</insert>
+	
+	<select id="sms.getLastStats" parameterClass="String" resultMap="statMap">
+		SELECT AA.COUPON_CODE AS COUpON_CODE,
+		       BB.COUPON_NAME AS COUPON_NAME,
+		       COUNT(1) AS COUNT
+		FROM   MSR_COUPON_PUBLICATION_LIST AA,
+		       MSR_COUPON_MASTER BB
+		WHERE  1=1
+		AND    AA.COUPON_POLICY_CODE = BB.COUPON_POLICY_CODE
+		AND    AA.COUPON_CODE = #couponCode#
+		AND    BB.PUBLICATION_STATUS = 'N'
+		AND    AA.COUPON_STATUS IN ('A', 'U')
+		AND    TO_CHAR(AA.REG_DATE, 'YYYYMMDD') BETWEEN TO_CHAR(SYSDATE-1, 'YYYYMMDD') AND TO_CHAR(SYSDATE, 'YYYYMMDD')
+		GROUP BY TO_CHAR(AA.REG_DATE,'YYYYMMDD'), AA.COUPON_POLICY_CODE, AA.COUPON_CODE, AA.COUPON_PUBLICATION_SEQ, BB.COUPON_NAME
+		ORDER BY AA.COUPON_POLICY_CODE, AA.COUPON_CODE, AA.COUPON_PUBLICATION_SEQ, BB.COUPON_NAME, TO_CHAR(AA.REG_DATE, 'YYYYMMDD') 
+	</select>
+	
+	<resultMap id="smsInfoMap" class="java.util.HashMap">
+		<result property="seqNo" column="seq" javaType="Integer" />
+		<result property="msg" column="message" javaType="String" />
+		<result property="result" column="result" javaType="String" />
+	</resultMap>
+	
+	<select id="sms.getCouponStatSMSInfo" parameterClass="java.util.Map" resultMap="smsInfoMap">
+		SELECT SEQNO as seq,
+		       MSG as message,
+		       RESULT as result
+		FROM   smsdata##
+		WHERE  SENDNAME = #sendName#
+		AND    RDATE = #rDate#
+		AND    INDATE = #inDate#
+		AND    RTIME = rpad(#rTime#,8,' ')
+	</select>
+	
+	<update id="sms.updateCouponStatSMSInfo" parameterClass="java.util.Map">
+		UPDATE SMSDATA##
+		SET    MSG = #msg#, RESULT = #result#
+		WHERE  SEQNO = #seq#
+	</update>
+</sqlMap>

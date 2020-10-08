@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMapConfig PUBLIC "-//iBATIS.com//DTD SQL Map Config 2.0//EN" "http://www.ibatis.com/dtd/sql-map-config-2.dtd">
+
+<sqlMapConfig>
+	<properties resource="jdbc.properties" />
+	
+	<settings
+		cacheModelsEnabled="true"
+		enhancementEnabled="true"
+		lazyLoadingEnabled="false"
+		useStatementNamespaces="false"
+		maxSessions="10"
+		maxTransactions="10"
+		maxRequests="128"
+		/>
+		
+	<transactionManager type="JDBC" >
+		<dataSource type="DBCP">
+			<property name="JDBC.Driver"					value="${oracle.jdbc.driverClassName}"/>
+			<property name="JDBC.ConnectionURL" 			value="${scksa.oracle.jdbc.url}"/>
+			<property name="JDBC.Username"					value="${scksa.oracle.jdbc.username}"/>
+			<property name="JDBC.Password"					value="${scksa.oracle.jdbc.password}"/>
+			<property name="JDBC.DefaultAutoCommit"         value="false" />
+			<!--OPTIONAL PROPERTIES BELOW -->
+			<property name="Pool.MaximumActiveConnections"	value="${oracle.jdbc.maxActive}"/>
+			<property name="Pool.MaximumIdleConnections"	value="${oracle.jdbc.maxIdle}"/>
+			<property name="Pool.MaximumWait"				value="${oracle.jdbc.maxWait}"/>
+			<property name="Pool.ValidationQuery"			value="${oracle.jdbc.validationQuery}"/>			
+		</dataSource>
+	</transactionManager>	
+	
+	<sqlMap resource="sqlmapSCKSA/wholecakeOrderScksa.xml" />	
+	<sqlMap resource="sqlmapSCKSA/couponScksa.xml" />
+	<sqlMap resource="sqlmapSCKSA/xoGiftScksa.xml" />
+</sqlMapConfig>

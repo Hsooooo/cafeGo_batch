@@ -1,0 +1,4 @@
+eclipse.preferences.version=1
+encoding//deploy/stg/conf/sms.properties=EUC-KR
+encoding//deploy/stg/conf/xoBatch.properties=UTF-8
+encoding/<project>=EUC-KR

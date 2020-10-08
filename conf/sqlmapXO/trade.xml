@@ -1,0 +1,409 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="trade">
+
+    <!-- 거래 대사 대상 조회 -->
+    <select id="trade.getTradeCorrectionInfo" resultClass="co.kr.istarbucks.xo.batch.common.dto.xo.TradeCorrectionDto">
+		SELECT /*+ INDEX(order_tbl PK_XO_ORDER) */
+		       sales_tbl.order_no
+		     , sale_flag
+		     , store_no
+		     , pos_no
+		     , sale_date
+		     , appro_tm
+		     , seq_no
+		     , tran_seq_no
+		     , user_id
+		     , user_name
+		     , status
+		     , order_tbl.msr_user_flag as msr_user_flag
+		     , order_tbl.total_pay_amt as total_pay_amt
+		  FROM (SELECT xo_ord_no as order_no
+		             , sale_flag
+		             , store_no
+		             , pos_no
+		             , sale_date
+		             , appro_tm
+		             , seq_no
+		             , tran_seq_no
+		          FROM (
+		                SELECT xo_ord_no
+		                     , sale_flag
+		                     , store_no
+		                     , pos_no
+		                     , sale_date
+		                     , appro_tm
+		                     , seq_no
+		                     , tran_seq_no
+		                     , CASE
+		                          WHEN appro_tm = max(appro_tm) over (partition by xo_ord_no) 
+		                          THEN 'Y' else null 
+		                       END last_yn
+		                  FROM scksa.sal_pay_xo@DBLINK_SCK_XOP
+		                 WHERE sale_date =  TO_CHAR(SYSDATE - 1, 'YYYYMMDD')
+		                   AND (res_ord_flag IS NULL OR res_ord_flag = '0')
+		                )
+		         WHERE last_yn = 'Y') sales_tbl
+		      , (SELECT order_no
+		              , user_id
+		              , user_name
+		              , status
+		              , msr_user_flag
+		              , total_pay_amt
+		           FROM xo_order##
+		          WHERE reg_date BETWEEN TO_DATE(TO_CHAR(SYSDATE - 1, 'YYYYMMDD'), 'YYYYMMDD') AND TO_DATE(TO_CHAR(SYSDATE - 1, 'YYYYMMDD'),'YYYYMMDD') + 0.99999
+		        ) order_tbl
+		 WHERE sales_tbl.order_no = order_tbl.order_no
+		ORDER BY order_no
+    </select>
+    
+    
+        <!-- XO_PAYMENT# STATUS 조회 -->
+    <select id="trade.getXoPaymentStatusInfo" parameterClass="java.util.Map" resultClass="java.lang.String">
+		
+		SELECT status
+		FROM XO_PAYMENT##
+		WHERE order_no = #orderNo#
+		  AND status = 'C'
+		  AND cancel_result_code = '00'
+		  AND ROWNUM = 1
+			
+ 	</select>
+ 	
+    <!-- 거래 대사 대상 조회 - 거래 날짜 입력 -->
+    <select id="trade.getTradeCorrectionDateInfo" resultClass="co.kr.istarbucks.xo.batch.common.dto.xo.TradeCorrectionDto">
+		SELECT /*+ INDEX(order_tbl PK_XO_ORDER) */
+		       sales_tbl.order_no
+		     , sale_flag
+		     , store_no
+		     , pos_no
+		     , sale_date
+		     , appro_tm
+		     , seq_no
+		     , tran_seq_no
+		     , user_id
+		     , user_name
+		     , status
+		     , order_tbl.msr_user_flag as msr_user_flag
+		     , order_tbl.total_pay_amt as total_pay_amt
+		  FROM (SELECT xo_ord_no as order_no
+		             , sale_flag
+		             , store_no
+		             , pos_no
+		             , sale_date
+		             , appro_tm
+		             , seq_no
+		             , tran_seq_no
+		          FROM (
+		                SELECT xo_ord_no
+		                     , sale_flag
+		                     , store_no
+		                     , pos_no
+		                     , sale_date
+		                     , appro_tm
+		                     , seq_no
+		                     , tran_seq_no
+		                     , CASE
+		                          WHEN appro_tm = max(appro_tm) over (partition by xo_ord_no) 
+		                          THEN 'Y' else null 
+		                       END last_yn
+		                  FROM scksa.sal_pay_xo@DBLINK_SCK_XOP
+		                 WHERE sale_date =  #tradeDate#
+		                   AND (res_ord_flag IS NULL OR res_ord_flag = '0')
+		                )
+		         WHERE last_yn = 'Y') sales_tbl
+		      , (SELECT order_no
+		              , user_id
+		              , user_name
+		              , status
+		              , msr_user_flag
+		              , total_pay_amt
+		           FROM xo_order##
+		          WHERE reg_date BETWEEN TO_DATE(#tradeDate#, 'YYYYMMDD') AND TO_DATE(#tradeDate#, 'YYYYMMDD') + 0.99999
+		        ) order_tbl
+		 WHERE sales_tbl.order_no = order_tbl.order_no
+		ORDER BY order_no
+    </select>
+	
+	<!-- 거래 테이블 update -->
+	<update id="trade.tradeComplete" parameterClass="java.util.Map">
+		UPDATE xo_order##
+		   SET trade_flag = 'Y'
+		    <isNotEmpty property="status">
+		        , mod_Date = sysdate
+                , status = #status#
+            </isNotEmpty>
+            <isNotEmpty property="isCancelComp">
+	            <isEqual property="isCancelComp" compareValue="N">
+		               , pos_comp_flag = 'Y'
+		            <isNotEmpty property="storeCd">
+		               , store_cd = #storeCd# 
+		            </isNotEmpty>
+		            <isNotEmpty property="posNo">
+		               , pos_no = #posNo#
+		            </isNotEmpty>
+		            <isNotEmpty property="saleDate">
+		               , sale_date = #saleDate#
+		            </isNotEmpty>
+		            <isNotEmpty property="seqNo">
+		               , seq_no = #seqNo#
+		            </isNotEmpty>
+		            <isNotEmpty property="tranSeqNo">
+		               , tran_seq_no = #tranSeqNo#
+		            </isNotEmpty>
+	            </isEqual>
+	            <isEqual property="isCancelComp" compareValue="Y">
+	                   , pos_comp_flag = 'N'
+	                   , order_date = null
+	                   , order_kind = null
+	                   <!-- 영업정보 상태 : 19-일반매출취소 / MSR 상태 : 20-주문 요청, 21-주문 승인, 30-주문 완료,31-제조 완료인 경우 MSR 상태 22-주문취소 시 --> 
+                       <!-- 대사처리 거래키 정보 업데이트  -->
+					  <isNotEmpty property="saleDate">, sale_date = #saleDate#</isNotEmpty>
+					  <isNotEmpty property="storeCd"> , store_cd = #storeCd#</isNotEmpty>
+					  <isNotEmpty property="posNo">   , pos_no = #posNo#</isNotEmpty>
+					  <isNotEmpty property="seqNo">   , seq_no = #seqNo#</isNotEmpty>
+	                   , tran_seq_no = null
+	                   , cashier_id = null
+	                   , bankcd = null
+	            </isEqual>
+            </isNotEmpty>
+		 WHERE order_no = #orderNo#
+	</update>
+	
+	<!-- 거래 히스토리 insert -->
+    <update id="trade.orderHistoryRegister" parameterClass="java.util.Map">
+		INSERT INTO xo_order_history
+		          ( order_no
+		          , user_id
+		          , user_name
+		          , status
+		          , history_channel
+		          , reg_date
+		          <isNotEmpty property="storeCd">
+		          , store_cd
+		          </isNotEmpty>
+		          <isNotEmpty property="posNo">
+		          , pos_no
+		          </isNotEmpty>
+		          <isNotEmpty property="saleDate">
+		          , sale_date
+		          </isNotEmpty>
+		          <isNotEmpty property="seqNo">
+		          , seq_no
+		          </isNotEmpty>
+		          <isNotEmpty property="tranSeqNo">
+		          , tran_seq_no
+		          </isNotEmpty>
+		          )
+		    VALUES ( #orderNo#
+		           , #userId#
+		           , #userName#
+		           , #status#
+		           , #historyChannel#
+		           , SYSDATE
+		           <isNotEmpty property="storeCd">
+		           , #storeCd#
+		           </isNotEmpty>
+		           <isNotEmpty property="posNo">
+		           , #posNo#
+		           </isNotEmpty>
+		           <isNotEmpty property="saleDate">
+		           , #saleDate#
+		           </isNotEmpty>
+		           <isNotEmpty property="seqNo">
+		           , #seqNo#
+		           </isNotEmpty>
+		           <isNotEmpty property="tranSeqNo">
+		           , #tranSeqNo#
+		           </isNotEmpty>
+		           )
+    </update>
+	
+	<!-- 주문 취소 대상 조회 -->
+	<select id="trade.getOrderCancelInfo" resultClass="co.kr.istarbucks.xo.batch.common.dto.xo.TradeCorrectionDto">
+		SELECT order_no, user_id, user_name, status, msr_user_flag, total_pay_amt
+          FROM xo_order##
+	     WHERE (TRUNC(SYSDATE - 1) <![CDATA[ <= ]]> mod_date) AND (mod_date <![CDATA[ < ]]> TRUNC(SYSDATE))
+	       AND status IN ('20','21','30','31') 
+	       AND (trade_flag <![CDATA[ <> ]]> 'Y' OR trade_flag is null)
+    </select>
+   
+    <!-- 주문 취소 대상 조회 - 거래 날짜 입력 -->
+    <select id="trade.getOrderCancelDateInfo" resultClass="co.kr.istarbucks.xo.batch.common.dto.xo.TradeCorrectionDto">
+	    SELECT order_no, user_id, user_name, status, msr_user_flag, total_pay_amt
+	      FROM xo_order##
+	     WHERE (TRUNC(to_date(#tradeDate#,'yyyy-MM-dd')) <![CDATA[ <= ]]> mod_date) AND (mod_date <![CDATA[ < ]]> TRUNC((to_date(#tradeDate#,'yyyy-MM-dd') + 1)))
+	       AND status IN ('20','21','30','31') 
+	       AND (trade_flag <![CDATA[ <> ]]> 'Y' OR trade_flag is null)
+    </select>
+    
+    <!-- 제조완료일 조회 -->
+    <select id="trade.getOrderMakeComplateDate" parameterClass="java.util.Map" resultClass="string">
+	  SELECT MAX(TO_CHAR(order_date, 'YYYYMMDDHH24MISS')) AS order_date
+		FROM xo_order##
+	   WHERE ORDER_NO = #orderNo#
+		 AND USER_ID = #userId#
+		 AND STATUS = #status#
+	</select>
+	
+    <!-- 홀케익 (수령완료 : O30, 미수령 폐기 : O31) 대사 대상 조회 -->
+    <select id="trade.getWholecakeInfo" parameterClass="java.util.Map" resultClass="co.kr.istarbucks.xo.batch.common.dto.xo.TradeCorrectionDto">
+        SELECT /*+ INDEX(order_tbl PK_XO_WHOLECAKE_ORDER) INDEX(order_tbl IDX_XO_WHOLECAKE_ORDER_01) */
+               order_tbl.order_no
+             , sales_tbl.sale_flag
+             , sales_tbl.store_no
+             , sales_tbl.pos_no
+             , sales_tbl.sale_date
+             , sales_tbl.appro_tm
+             , sales_tbl.seq_no
+             , sales_tbl.tran_seq_no
+             , order_tbl.user_id
+             , order_tbl.user_name
+             , order_tbl.status
+             , TO_DATE(sales_tbl.sale_date || sales_tbl.appro_tm, 'YYYYMMDDHH24MISS') AS receive_comp_date
+             , order_tbl.receive_type
+             , sales_tbl.receive_type AS sales_tbl_receive_type             
+          FROM (SELECT xo_ord_no as order_no
+                     , sale_flag
+                     , store_no
+                     , pos_no
+                     , sale_date
+                     , appro_tm
+                     , seq_no
+                     , tran_seq_no
+                     , receive_type
+                  FROM (
+                        SELECT xo_ord_no
+                             , sale_flag
+                             , store_no
+                             , pos_no
+                             , sale_date
+                             , appro_tm
+                             , seq_no
+                             , tran_seq_no
+                             , (CASE
+                                  WHEN appro_tm = MAX(appro_tm) OVER (PARTITION BY xo_ord_no) 
+                                  THEN 'Y' ELSE NULL 
+                                 END 
+                               ) AS last_yn
+                             , (CASE WHEN xo_ord_no LIKE '7%' THEN 'P'
+                                     ELSE 'O'
+                                 END
+                               ) AS receive_type
+                          FROM SCKSA.SAL_PAY_XO@DBLINK_SCK_XOP
+                         WHERE 1=1
+                           <!-- 홀케익 대사 날짜 입력정보가 있는 경우   -->
+                           <isNotEmpty property="tradeDate">
+                           AND sale_date =  #tradeDate#
+						   </isNotEmpty>
+						   <!-- 홀케익 대사 날짜 입력정보가 없는 경우 전일 대상조회   -->
+						   <isEmpty property="tradeDate">
+                           AND sale_date =  TO_CHAR(SYSDATE - 1, 'YYYYMMDD')
+                           </isEmpty>
+                           <!-- 수령완료 : O30 값인 경우  res_ord_flag : 1 값을 조회-->
+                           <isEqual property="status" compareValue="O30">                                           
+                           AND res_ord_flag = '1'
+                           </isEqual>
+                           <!-- 미수령 폐기 : O31 값인 경우  res_ord_flag : 2 값을 조회-->
+                           <isEqual property="status" compareValue="O31">
+                           AND res_ord_flag = '2'
+                           </isEqual>
+                        )
+                 WHERE last_yn = 'Y') sales_tbl
+              , (SELECT order_no
+                      , user_id
+                      , user_name
+                      , status
+                      , present_no
+                      , receive_date
+                      , receive_type
+                   FROM XO_WHOLECAKE_ORDER##
+                  WHERE status IN ('O20', 'O21', 'O30', 'O31')
+                    <!-- 홀케익 대사 날짜 입력정보가 있는 경우   -->
+                    <isNotEmpty property="tradeDate">
+                    AND receive_date <![CDATA[ >= ]]> TO_CHAR(TO_DATE(#tradeDate#, 'YYYYMMDD') - 2, 'YYYYMMDD')
+                    AND receive_date <![CDATA[ <= ]]> TO_CHAR(TO_DATE(#tradeDate#, 'YYYYMMDD'), 'YYYYMMDD')
+                    </isNotEmpty>
+                    <!-- 홀케익 대사 날짜 입력정보가 없는 경우 전일 대상조회   -->
+                    <isEmpty property="tradeDate">
+                    AND receive_date <![CDATA[ >= ]]> TO_CHAR (SYSDATE - 3, 'YYYYMMDD')
+                    AND receive_date <![CDATA[ <= ]]> TO_CHAR (SYSDATE - 1, 'YYYYMMDD')
+                    </isEmpty>
+                ) order_tbl
+         WHERE (sales_tbl.order_no = order_tbl.order_no
+                OR sales_tbl.order_no = order_tbl.present_no)
+         ORDER BY order_no
+    </select>
+    
+   	<!-- 홀케익 예약 테이블 update -->
+	<update id="trade.tradeWholecakeComplete" parameterClass="java.util.Map">
+		UPDATE XO_WHOLECAKE_ORDER##
+		   SET trade_flag = 'Y'
+		    <isNotEmpty property="status">
+                , status = #status# 			<!-- 상태 -->
+                , pos_comp_flag = 'Y' 			<!-- 매출확정여부 -->
+            </isNotEmpty>
+			<isNotEmpty property="saleDate">
+               , sale_date = #saleDate# 		<!-- 영업일 -->
+            </isNotEmpty>		               
+            <isNotEmpty property="storeCd">
+               , store_cd = #storeCd#  		    <!-- 점포코드 -->
+            </isNotEmpty>
+            <isNotEmpty property="posNo">
+               , pos_no = #posNo# 				<!-- POS번호 -->
+            </isNotEmpty>
+            <isNotEmpty property="seqNo">
+               , seq_no = #seqNo# 				<!-- 거래번호 -->
+            </isNotEmpty>
+            <isNotEmpty property="receiveCompDate">
+               , receive_comp_date = #receiveCompDate# <!--수령/미수령 완료일자 -->
+            </isNotEmpty>
+            <isNotEmpty property="receiveType">
+               , receive_type = #receiveType# 	<!-- 수령구분값 -->
+            </isNotEmpty>
+		 WHERE order_no = #orderNo#
+	</update>
+	
+	<!-- 홀케익 히스토리 등록 -->
+	<insert id="trade.wholecakeOrderHistoryRegister" parameterClass="java.util.Map">
+	    INSERT INTO XO_WHOLECAKE_ORDER_HISTORY## (
+		       order_no
+		     , status                        
+		     , history_channel               
+		     , app_disp_yn
+            <isNotEmpty property="saleDate">
+             , sale_date <!-- 영업일 -->
+            </isNotEmpty>		               
+            <isNotEmpty property="storeCd">
+             , store_cd  <!-- 점포코드 -->
+            </isNotEmpty>
+            <isNotEmpty property="posNo">
+             , pos_no    <!-- POS번호 -->
+            </isNotEmpty>
+            <isNotEmpty property="seqNo">
+             , seq_no    <!-- 거래번호 -->
+            </isNotEmpty>		     
+		     , reg_date
+		    ) VALUES ( 
+		       #orderNo#
+		     , #status#
+		     , '5'
+		     , 'Y'
+			<isNotEmpty property="saleDate">
+             , #saleDate# <!-- 영업일 -->
+            </isNotEmpty>		               
+            <isNotEmpty property="storeCd">
+             , #storeCd#  <!-- 점포코드 -->
+            </isNotEmpty>
+            <isNotEmpty property="posNo">
+             , #posNo#    <!-- POS번호 -->
+            </isNotEmpty>
+            <isNotEmpty property="seqNo">
+             , #seqNo#    <!-- 거래번호 -->
+            </isNotEmpty>    
+		     , SYSDATE
+		    )
+	</insert>
+	
+</sqlMap>

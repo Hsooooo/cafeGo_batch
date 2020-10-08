@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="autoPushSS">
+	
+	<!-- 푸시 발송 대상 추출(삼성앱) -->
+	<select id="autoPushSS.getSamsungOrderAutoPush" parameterClass="java.util.Map" resultClass="co.kr.istarbucks.xo.batch.common.dto.xo.OrderAutoPushDto">
+		SELECT order_no, bds_no, push_id, os_type, push_cnt, receipt_order_no, user_id,  msg_type, bds_name
+		  FROM (SELECT order_no, bds_no, push_id, os_type, push_cnt, receipt_order_no,
+		               user_id, msg_type, bds_name,
+		               (CASE
+		                   WHEN push_cnt = 0 THEN 'Y'
+		                   WHEN push_cnt = 1 THEN (CASE WHEN push_min >= #second_push# THEN 'Y' ELSE 'N' END)
+		                   WHEN push_cnt = 2 THEN (CASE WHEN push_min >= #third_push# THEN 'Y' ELSE 'N' END)
+		                   WHEN push_cnt = 3 THEN (CASE WHEN push_min >= #fourth_sms# THEN 'Y' ELSE 'N' END)
+		                   ELSE 'N'
+		                END
+		               ) AS push_yn
+		          FROM (SELECT /*+ ORDERED */
+		          			   xap.order_no, xap.bds_no, xap.push_id, xap.os_type, xap.push_cnt, xap.receipt_order_no,
+		                       xap.user_id, xap.msg_type, xap.bds_name,
+		                       TRUNC ((SYSDATE - xap.reg_date) * 24 * 60) AS push_min
+		                  FROM XO_AUTO_PUSH xap, XO_ORDER## xo
+		                 WHERE xap.status = '31'
+		                   AND xap.reg_date > SYSDATE - (10 / 24 / 60)
+		                   AND xap.thread_input_yn = 'N'
+		                   AND xap.order_no = xo.order_no
+		                   AND xo.model_type = '83'))
+		 WHERE push_yn = 'Y'
+	</select>
+	
+	<!-- 푸시 발송 대상건 상태 재조회 -->
+	<select id="autoPushSS.getOrderStatus" parameterClass="java.util.Map" resultClass="java.lang.String">
+		SELECT STATUS
+		  FROM XO_AUTO_PUSH
+		 WHERE ORDER_NO = #order_no#
+		   AND BDS_NO = #bds_no#
+	</select>
+	
+	<!-- 푸시 발송건 발송 횟수 업데이트 -->
+    <update id="autoPushSS.updateOrderAutoPush" parameterClass="java.util.Map">
+		UPDATE XO_AUTO_PUSH
+		   SET PUSH_CNT = PUSH_CNT + 1
+		 WHERE ORDER_NO = #order_no#
+		   AND BDS_NO = #bds_no#
+	</update>
+	
+	<!-- 스레드에 들어가고 빠져나올때 상태값 변경 -->
+	<update id="autoPushSS.updateThreadInputYn" parameterClass="java.util.Map">
+		UPDATE XO_AUTO_PUSH
+		   SET THREAD_INPUT_YN = #input_yn#
+		 WHERE ORDER_NO = #order_no#
+		   AND BDS_NO = #bds_no#
+	</update>
+	
+	<!-- 푸시 히스토리 등록 -->
+	<insert id="autoPushSS.insertPushHistory" parameterClass="co.kr.istarbucks.xo.batch.common.dto.xo.PushHistoryDto">
+		INSERT INTO xo_push_history (
+			push_no				 <!-- PUSH 일련번호{"9" + YYYYMMDDHH24MISS + 시퀀스 5자리} -->
+			, user_id			 <!-- 사용자아이디 -->
+			, push_id			 <!-- PUSH ID -->
+			, push_type			 <!-- PUSH타입{1-주문접수, 2-제조완료, 3-제조불가, 4-고객호출, 5-기타} -->
+			, push_message		 <!-- PUSH 메세지 -->
+			, order_no			 <!-- 주문번호 -->
+			, os_type			 <!-- 단말구분{1-iOS, 2-Android, 9-기타} -->
+			, view_type			 <!-- 결과화면 타입{W-웹뷰, N-네이티브뷰, X-호출안함} -->
+			, url				 <!-- 웹뷰 호출 시 이동할 URL -->
+			, screen_id			 <!-- 네이티브뷰 호출 시 이동할 화면아이디 -->
+			, param				 <!-- 파라미터 -->
+			, reg_date			 <!-- 요청일자 -->
+			, result_code		 <!-- 결과코드 -->
+			, result_msg		 <!-- 결과상세{코드99일시 GCM서버 혹은 APNS에서 리턴되는 한글을 반환함} -->
+			, result_push_id	 <!-- PUSH 발송 고유 번호 -->
+			<isNotEmpty property="process_date">, process_date</isNotEmpty>
+		) VALUES (
+			(SELECT fn_get_serial_number('9') as order_no FROM DUAL)
+			, #user_id#
+			, #push_id#
+			, #push_type#
+			, #push_message#
+			, #order_no#
+			, #os_type#
+			, #view_type#
+			, #url#
+			, #screen_id#
+			, #param#
+			, SYSDATE
+			, #result_code#
+			, #result_msg#
+			, #result_push_id#
+			<isNotEmpty property="process_date">, TO_DATE(#process_date#, 'YYYY-MM-DD HH24:MI:SS')</isNotEmpty>
+		)
+	</insert>
+	
+	<!-- 주문번호로 주문매장, 휴대폰번호 조회 -->
+	<resultMap id="orderMap" class="java.util.HashMap">
+        <result property="storeName"	column="store_name"	javaType="String"	nullValue=""/>
+        <result property="phone"		column="phone"		javaType="String"	nullValue=""/>
+        <result property="userId"		column="user_id"	javaType="String"	nullValue=""/>
+        <result property="bdsName"		column="bds_name"	javaType="String"	nullValue=""/>
+    </resultMap>
+	<select id="autoPushSS.getOrderInfo" parameterClass="java.util.Map" resultMap="orderMap">
+		SELECT *
+		  FROM (
+		    SELECT *
+		      FROM (
+		        SELECT xs.store_name
+		             , xx1.dec_varchar2_sel (xo.phone, 10, 'PHONE') AS phone
+		             , xo.user_id
+		             , xo.msr_user_flag AS msrFlag
+		             , xoap.bds_name
+		          FROM xo_order## xo, xo_store xs, xo_auto_push xoap
+		         WHERE xo.store_cd = xs.store_cd
+		           AND xo.order_no = xoap.order_no
+		           AND xo.order_no = #order_no#
+		           AND xoap.bds_no = #bds_no#
+		        
+		         UNION
+		        
+		        SELECT xs.store_name
+		             , NULL AS phone
+		             , xpo.user_id
+		             , NULL AS msrFlag 
+		             , xoap.bds_name
+		          FROM xo_pos_order xpo, xo_store xs, xo_auto_push xoap
+		         WHERE xpo.store_cd = xs.store_cd
+		           AND xpo.order_no = xoap.order_no
+		           AND xpo.order_no = #order_no#
+		           AND xoap.bds_no = #bds_no#
+		      )
+		     WHERE MSRFLAG NOT IN ('B', 'J')
+		  )
+		 WHERE ROWNUM = 1
+	</select>
+	
+	<!-- SMS 발송 요청(계정 : MMS) -->
+	<insert id="autoPushSS.insertSmtTran" parameterClass="java.util.Map">
+		<selectKey resultClass="java.lang.Long" keyProperty="mt_pr">
+			SELECT  MMS.SQ_EM_SMT_TRAN_01.nextval as mt_pr FROM DUAL
+		</selectKey>
+		INSERT INTO mms.em_smt_tran (
+		         mt_pr              <!-- 메시지 고유 아이디 -->
+	                , priority           <!-- 전송 우선 순위{VF-Very Fast, F-Fast, S-Slow} -->
+	                , date_client_req    <!-- 전송 예약 시간 -->
+	                , content            <!-- 전송 메시지 -->
+	                , callback           <!-- 발신자 전화 번호 -->
+	                , service_type       <!-- 서비스 메시지 전송 타입{0-SMS MT, 1-CALLBACK URL, 2-MMS MT, 3-LMS} -->
+	                , broadcast_yn       <!-- 동보 발송 유무{'N' : 단일건, 'Y' :동보건} -->
+	                , msg_status         <!-- 메시지 상태{1-전송대기, 2-결과대기, 3-완료} -->
+	                , recipient_num      <!-- 수신자 전화 번호 -->
+	                , reg_date           <!-- 데이터 등록일자 -->
+			) VALUES (
+	                  TO_NUMBER(#mt_pr#)
+	                , #priority#
+	                , SYSDATE
+	                , #content#
+	                , #callback#
+	                , '0'
+	                , 'N'
+	                , '1'
+	                , #recipient_num#
+	                , SYSDATE
+	                )
+	</insert>
+	
+	<!-- 전용망 PUSH 전송이력 등록 -->
+	<insert id="autoPushSS.insertExternalPushHistory" parameterClass="java.util.Map">
+		INSERT
+		  INTO XO_XTRNL_PUSH_H
+		  		(
+		        	XTRNL_TRNSC_ID,
+		            SROR_ORDER_NO,
+		            TRNSS_DATE,
+		            TRNSS_HMS,
+		            CNTNT,
+		            XTRNL_PUSH_TYPE_CODE,
+		            RGSTT_DTM
+		        )
+		VALUES (
+					#xtrnl_trnsc_id#,
+		            #sror_order_no#,
+		            #trnss_date#,
+		            #trnss_hms#,
+		            #cntnt#,
+		            #xtrnl_push_type_code#,
+		            SYSDATE
+				)
+	</insert>
+	
+	<!-- 전용망 PUSH 전송이력 수정 -->
+	<update id="autoPushSS.updateExternalPushHistory" parameterClass="java.util.Map">
+		UPDATE XO_XTRNL_PUSH_H
+		   SET RSPNS_CODE  = #rspns_code#
+		     , RSPNS_CNTNT = #rspns_cntnt#
+		     , EDIT_DTM	   = SYSDATE
+		 WHERE XTRNL_TRNSC_ID = #xtrnl_trnsc_id#
+	</update>
+	
+</sqlMap>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="mail">
+
+	<!-- 메일 발송 요청 -->
+	<insert id="mail.insertSendMailQueue" parameterClass="co.kr.istarbucks.xo.batch.common.dto.msr.SendMailQueueDto">
+		INSERT 
+		  INTO MSR_SEND_MAIL_QUEUE## (
+		       user_id, 
+		       template, 
+		       status, 
+		       mail_args, 
+		       reg_date, 
+		       mail_title, 
+		       email, 
+		       coupon_number, 
+		       seq
+		       ) 
+		VALUES (
+		       #user_id#,                                     <!-- 수신자 아이디 -->
+		       #template#,                                    <!-- 메일템플릿 -->
+		       'N',                                           <!-- 발송상태 {N-미발송, I-발송처리중, E-발송오류, Y-발송완료, Z-수신거부} -->
+		       #mail_args#,                                   <!-- 템플릿 적용 변수 -->
+		       TO_DATE(#str_reg_date#, 'yyyyMMddhh24miss'),   <!-- 발송신청일 -->
+		       #mail_title#,                                  <!-- 메일 제목 -->
+		       XX1.ENC_VARCHAR2_INS(#email#, 11, 'MAIL'),     <!-- 메일주소 -->
+		       #coupon_number#,                               <!-- 쿠폰일련번호 -->
+		       SEQ_MSR_SEND_MAIL_QUEUE.NEXTVAL                <!-- 일련번호 -->
+		       )
+	</insert>
+</sqlMap>

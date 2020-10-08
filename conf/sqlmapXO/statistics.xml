@@ -1,0 +1,868 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="statistics">
+	
+	<!-- DB 날짜 조회 조회 -->
+	<resultMap class="java.util.HashMap" id="todayMap">
+		<result property="dbToday" column="dbToday"/>
+		<result property="firstDayFlag" column="firstDayFlag"/>
+	</resultMap>	
+	<select id="statistics.getToday" resultMap="todayMap">
+		SELECT 
+		    TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI') AS dbToday 
+		    , DECODE(TRUNC(SYSDATE), TRUNC(SYSDATE, 'month'), 'Y', 'N' ) firstDayFlag
+		  FROM dual
+	</select>
+	
+	<!-- 결제수단별 매출 통계 -->
+	<!-- [PG확대] 2020.05.06 - 일 통계 테이블에 PG사 코드 추가 등록, 그로 인한 일/월 통계 쿼리 분리 -->
+	<update id="statistics.payMethod" parameterClass="java.util.Map">
+		<!--  일 통계 -->
+		<isEqual property="type" compareValue="D">
+			INSERT INTO xo_stat_pay_method_day
+			            (stat_date, member_type, pay_method, COUNT, amount, cancel_count,
+			             cancel_amount, refund_count, refund_amount, pgcm_code)
+			   SELECT DISTINCT stat_date, member_type, pay_method,
+			                   SUM (DECODE (status, 'P', 1, 0)) OVER (PARTITION BY stat_date, member_type, pay_method, pgcm_code) AS p_count,
+			                   SUM (DECODE (status, 'P', amount, 0)) OVER (PARTITION BY stat_date, member_type, pay_method, pgcm_code) AS p_amount,
+			                   SUM (DECODE (status, 'C', 1, 0)) OVER (PARTITION BY stat_date, member_type, pay_method, pgcm_code) AS c_count,
+			                   SUM (DECODE (status, 'C', amount, 0)) OVER (PARTITION BY stat_date, member_type, pay_method, pgcm_code) AS c_amount,
+			                   SUM (DECODE (status, 'R', 1, 0)) OVER (PARTITION BY stat_date, member_type, pay_method, pgcm_code) AS r_count,
+			                   SUM (DECODE (status, 'R', amount, 0)) OVER (PARTITION BY stat_date, member_type, pay_method, pgcm_code) AS r_amount,
+			                   pgcm_code
+			              FROM (SELECT /*+ INDEX(xp IDX_XO_PAYMENT_01) INDEX(xo PK_XO_ORDER)*/
+			                           TO_CHAR (xp.app_date, 'YYYYMMDD') AS stat_date,
+			                           xp.pay_method, 'P' AS status, amount,
+			                           CASE
+			                              WHEN xo.msr_user_grade IS NULL AND xo.msr_user_flag = 'N' THEN '2'
+			                              WHEN xo.msr_user_grade = '00' THEN '3'
+			                              WHEN xo.msr_user_grade = '10' OR xo.msr_user_grade = '11' THEN '4'
+			                              WHEN xo.msr_user_grade = '20' OR xo.msr_user_grade = '21' THEN '5'
+			                              WHEN xo.msr_user_grade IS NULL AND xo.msr_user_flag = 'B' THEN '6'
+			                              WHEN xo.msr_user_grade IS NULL AND xo.msr_user_flag = 'J' THEN '7'
+			                              ELSE '1'
+			                           END AS member_type,
+			                           CASE
+			                              WHEN xp.pgcm_code IS NOT NULL THEN xp.pgcm_code
+			                              WHEN xp.pay_method = 'C' THEN '001'
+			                              WHEN xp.pay_method = 'G' THEN '002'
+			                              WHEN xp.pay_method = 'M' THEN '002'
+			                              ELSE '000'
+			                           END AS pgcm_code
+			                      FROM xo_payment## xp, xo_order## xo
+			                    WHERE  xp.app_date >= TRUNC (SYSDATE - 1)
+			                       AND xp.app_date <![CDATA[ < ]]> TRUNC (SYSDATE)
+			                       AND xp.result_code = '00'
+			                       AND xp.order_no = xo.order_no
+			                    UNION ALL
+			                    SELECT /*+ INDEX(xp IDX_XO_PAYMENT_02) INDEX(xo PK_XO_ORDER)*/
+			                           TO_CHAR (xp.cancel_date, 'YYYYMMDD') AS stat_date,
+			                           xp.pay_method, xp.status, amount,
+			                           CASE
+			                              WHEN xo.msr_user_grade IS NULL AND xo.msr_user_flag = 'N' THEN '2'
+			                              WHEN xo.msr_user_grade = '00' THEN '3'
+			                              WHEN xo.msr_user_grade = '10' OR xo.msr_user_grade = '11' THEN '4'
+			                              WHEN xo.msr_user_grade = '20' OR xo.msr_user_grade = '21' THEN '5'
+			                              WHEN xo.msr_user_grade IS NULL AND xo.msr_user_flag = 'B' THEN '6'
+			                              WHEN xo.msr_user_grade IS NULL AND xo.msr_user_flag = 'J' THEN '7'
+			                              ELSE '1'
+			                           END AS member_type,
+			                           CASE
+			                              WHEN xp.pgcm_code IS NOT NULL THEN xp.pgcm_code
+			                              WHEN xp.pay_method = 'C' THEN '001'
+			                              WHEN xp.pay_method = 'G' THEN '002'
+			                              WHEN xp.pay_method = 'M' THEN '002'
+			                              ELSE '000'
+			                           END AS pgcm_code
+			                      FROM xo_payment## xp, xo_order## xo
+			                    WHERE  xp.cancel_date >= TRUNC (SYSDATE - 1)
+			                       AND xp.cancel_date <![CDATA[ < ]]> TRUNC (SYSDATE)
+			                       AND xp.result_code = '00'
+			                       AND xp.order_no = xo.order_no)
+			          ORDER BY stat_date, member_type, pay_method, pgcm_code		
+		</isEqual>
+		<!--  월 통계 -->
+		<isEqual property="type" compareValue="M">
+			INSERT INTO xo_stat_pay_method_month
+			            (stat_month, member_type, pay_method, COUNT, amount, cancel_count,
+			             cancel_amount, refund_count, refund_amount)
+			   SELECT DISTINCT stat_date, member_type, pay_method,
+			                   SUM (DECODE (status, 'P', 1, 0)) OVER (PARTITION BY stat_date, member_type, pay_method) AS p_count,
+			                   SUM (DECODE (status, 'P', amount, 0)) OVER (PARTITION BY stat_date, member_type, pay_method) AS p_amount,
+			                   SUM (DECODE (status, 'C', 1, 0)) OVER (PARTITION BY stat_date, member_type, pay_method) AS c_count,
+			                   SUM (DECODE (status, 'C', amount, 0)) OVER (PARTITION BY stat_date, member_type, pay_method) AS c_amount,
+			                   SUM (DECODE (status, 'R', 1, 0)) OVER (PARTITION BY stat_date, member_type, pay_method) AS r_count,
+			                   SUM (DECODE (status, 'R', amount, 0)) OVER (PARTITION BY stat_date, member_type, pay_method) AS r_amount
+			              FROM (SELECT /*+ INDEX(xp IDX_XO_PAYMENT_01) INDEX(xo PK_XO_ORDER)*/
+			                           TO_CHAR (xp.app_date, 'YYYYMM') AS stat_date,
+			                           xp.pay_method, 'P' AS status, amount,
+			                           CASE
+			                              WHEN xo.msr_user_grade IS NULL AND xo.msr_user_flag = 'N' THEN '2'
+			                              WHEN xo.msr_user_grade = '00' THEN '3'
+			                              WHEN xo.msr_user_grade = '10' OR xo.msr_user_grade = '11' THEN '4'
+			                              WHEN xo.msr_user_grade = '20' OR xo.msr_user_grade = '21' THEN '5'
+			                              WHEN xo.msr_user_grade IS NULL AND xo.msr_user_flag = 'B' THEN '6'
+			                              WHEN xo.msr_user_grade IS NULL AND xo.msr_user_flag = 'J' THEN '7'
+			                              ELSE '1'
+			                           END AS member_type
+			                      FROM xo_payment## xp, xo_order## xo
+			                     WHERE xp.app_date BETWEEN TRUNC (SYSDATE - 1, 'month') AND (TRUNC (SYSDATE) - 0.00001)
+			                       AND xp.result_code = '00'
+			                       AND xp.order_no = xo.order_no
+			                    UNION ALL
+			                    SELECT /*+ INDEX(xp IDX_XO_PAYMENT_02) INDEX(xo PK_XO_ORDER)*/
+			                           TO_CHAR (xp.cancel_date, 'YYYYMM') AS stat_date,
+			                           xp.pay_method, xp.status, amount,
+			                           CASE
+			                              WHEN xo.msr_user_grade IS NULL AND xo.msr_user_flag = 'N' THEN '2'
+			                              WHEN xo.msr_user_grade = '00' THEN '3'
+			                              WHEN xo.msr_user_grade = '10' OR xo.msr_user_grade = '11' THEN '4'
+			                              WHEN xo.msr_user_grade = '20' OR xo.msr_user_grade = '21' THEN '5'
+			                              WHEN xo.msr_user_grade IS NULL AND xo.msr_user_flag = 'B' THEN '6'
+			                              WHEN xo.msr_user_grade IS NULL AND xo.msr_user_flag = 'J' THEN '7'
+			                              ELSE '1'
+			                           END AS member_type
+			                      FROM xo_payment## xp, xo_order## xo
+			                     WHERE xp.cancel_date BETWEEN TRUNC (SYSDATE - 1, 'month') AND (TRUNC (SYSDATE) - 0.00001)
+			                       AND xp.result_code = '00'
+			                       AND xp.order_no = xo.order_no)
+			          ORDER BY stat_date, member_type, pay_method		
+		</isEqual>
+	</update>	
+	
+	<!-- 매장별 주문 통계 -->
+	<update id="statistics.storeOrder" parameterClass="java.util.Map">
+		INSERT INTO 
+			   <isEqual property="type" compareValue="D">xo_stat_store_order_day </isEqual>
+			   <isEqual property="type" compareValue="M">xo_stat_store_order_month </isEqual>
+			   (
+			   <isEqual property="type" compareValue="D">stat_date </isEqual>
+			   <isEqual property="type" compareValue="M">stat_month </isEqual>
+			   , store_cd, bankcd, timecd, micd, gstdgr, order_count, order_amount, order_cancel_count, order_cancel_amount)
+		SELECT DISTINCT stat_date, store_cd, bankcd, hh, mi, gstdgr
+		       , SUM(DECODE(status, '24', 1, 0)) OVER (PARTITION BY stat_date, store_cd, bankcd, hh, mi, gstdgr) AS order_count
+		       , SUM(DECODE(status, '24', total_pay_amt, 0)) OVER (PARTITION BY stat_date, store_cd, bankcd, hh, mi, gstdgr) AS order_amount
+		       , SUM(DECODE(status, '25', 1, 0)) OVER (PARTITION BY stat_date, store_cd, bankcd, hh, mi, gstdgr) AS order_cancel_count
+		       , SUM(DECODE(status, '25', total_pay_amt, 0)) OVER (PARTITION BY stat_date, store_cd, bankcd, hh, mi, gstdgr) AS order_cancel_amount
+		  FROM (
+		        SELECT		               
+		               <isEqual property="type" compareValue="D">xoh.sale_date AS stat_date </isEqual>
+					   <isEqual property="type" compareValue="M">SUBSTR(xoh.sale_date, 0, 6) AS stat_date </isEqual>
+		               , xoh.store_cd
+		               , NVL(xo.bankcd, '10') AS bankcd
+		               , TO_CHAR(xoh.reg_date, 'HH24') AS hh
+		               , CASE WHEN TO_CHAR(xoh.reg_date, 'MI') <![CDATA[<]]> '30' THEN '00' ELSE '30' END AS mi
+		               , NVL(xo.gstdgr, '22') AS gstdgr
+		               , xoh.status
+		               , xo.total_pay_amt
+		          FROM xo_order## xo, xo_order_history xoh
+		         WHERE xo.order_no = xoh.order_no
+		           <isEqual property="type" compareValue="D">AND xoh.sale_date = TO_CHAR (SYSDATE-1, 'YYYYMMDD')</isEqual>
+				   <isEqual property="type" compareValue="M">AND xoh.sale_date LIKE TO_CHAR (SYSDATE-1, 'YYYYMM') || '%'</isEqual>
+		           AND xoh.status IN ('24', '25')
+		        )		        
+		 ORDER BY stat_date, store_cd, bankcd, hh, mi, gstdgr
+	</update>
+	
+	<!-- 매장별 주문 합계 통계 -->
+	<update id="statistics.storeOrderSum" parameterClass="java.util.Map">
+		INSERT INTO 
+			   <isEqual property="type" compareValue="D">xo_stat_store_order_day_sum </isEqual>
+			   <isEqual property="type" compareValue="M">xo_stat_store_order_month_sum </isEqual>
+			   (
+			   <isEqual property="type" compareValue="D">stat_date </isEqual>
+			   <isEqual property="type" compareValue="M">stat_month </isEqual>
+			   , store_cd, order_count, order_amount, order_cancel_count, order_cancel_amount)
+		SELECT DISTINCT stat_date, store_cd
+		       , SUM(DECODE(status, '24', 1, 0)) OVER (PARTITION BY stat_date, store_cd) AS order_count
+		       , SUM(DECODE(status, '24', total_pay_amt, 0)) OVER (PARTITION BY stat_date, store_cd) AS order_amount
+		       , SUM(DECODE(status, '25', 1, 0)) OVER (PARTITION BY stat_date, store_cd) AS order_cancel_count
+		       , SUM(DECODE(status, '25', total_pay_amt, 0)) OVER (PARTITION BY stat_date, store_cd) AS order_cancel_amount
+		  FROM (
+		        SELECT
+		               <isEqual property="type" compareValue="D">xoh.sale_date AS stat_date </isEqual>
+					   <isEqual property="type" compareValue="M">SUBSTR(xoh.sale_date, 0, 6) AS stat_date </isEqual>
+		               , xoh.store_cd
+		               , xoh.status
+		               , xo.total_pay_amt
+		          FROM xo_order## xo, xo_order_history xoh
+		         WHERE xo.order_no = xoh.order_no
+		           <isEqual property="type" compareValue="D">AND xoh.sale_date = TO_CHAR (SYSDATE-1, 'YYYYMMDD')</isEqual>
+				   <isEqual property="type" compareValue="M">AND xoh.sale_date LIKE TO_CHAR (SYSDATE-1, 'YYYYMM') || '%'</isEqual>
+		           AND xoh.status IN ('24', '25')
+		        )
+		 ORDER BY stat_date, store_cd
+	</update>
+	
+	<!-- SKU별 주문 통계 -->
+	<update id="statistics.skuOrder" parameterClass="java.util.Map">
+		INSERT INTO 
+			   <isEqual property="type" compareValue="D">xo_stat_sku_order_day </isEqual>
+			   <isEqual property="type" compareValue="M">xo_stat_sku_order_month </isEqual>
+			   (
+			   <isEqual property="type" compareValue="D">stat_date </isEqual>
+			   <isEqual property="type" compareValue="M">stat_month </isEqual>
+			   , sku_no, timecd, micd, gstdgr, order_count, order_amount, order_cancel_count, order_cancel_amount)
+		SELECT DISTINCT stat_date, sku_no, hh, mi, gstdgr
+		       , SUM(DECODE(status, '24', qty, 0)) OVER (PARTITION BY stat_date, sku_no, hh, mi, gstdgr) AS order_count
+		       , SUM(DECODE(status, '24', total_gnd_amount, 0)) OVER (PARTITION BY stat_date, sku_no, hh, mi, gstdgr) AS order_amount
+		       , SUM(DECODE(status, '25', qty, 0)) OVER (PARTITION BY stat_date, sku_no, hh, mi, gstdgr) AS order_cancel_count
+		       , SUM(DECODE(status, '25', total_gnd_amount, 0)) OVER (PARTITION BY stat_date, sku_no, hh, mi, gstdgr) AS order_cancel_amount
+		  FROM (
+		        SELECT /*+ INDEX(xod IDX_XO_ORDER_DETAIL_01)*/
+		               <isEqual property="type" compareValue="D">xoh.sale_date AS stat_date </isEqual>
+					   <isEqual property="type" compareValue="M">SUBSTR(xoh.sale_date, 0, 6) AS stat_date </isEqual>
+		               , xod.sku_no
+		               , TO_CHAR(xoh.reg_date, 'HH24') AS hh
+		               , CASE WHEN TO_CHAR(xoh.reg_date, 'MI') <![CDATA[<]]> '30' THEN '00' ELSE '30' END AS mi
+		               , NVL(xo.gstdgr, '22') AS gstdgr
+		               , xoh.status
+		               , xod.qty
+		               , xod.total_gnd_amount
+		          FROM xo_order_history xoh, xo_order## xo, xo_order_detail xod
+		         WHERE xoh.order_no = xo.order_no
+		           AND xo.order_no = xod.order_no
+		           <isEqual property="type" compareValue="D">AND xoh.sale_date = TO_CHAR (SYSDATE-1, 'YYYYMMDD')</isEqual>
+				   <isEqual property="type" compareValue="M">AND xoh.sale_date LIKE TO_CHAR (SYSDATE-1, 'YYYYMM') || '%'</isEqual>
+		           AND xoh.status IN ('24', '25')
+		           AND xod.cate_type IS NOT NULL		           
+		        )
+		 ORDER BY stat_date, sku_no, hh, mi, gstdgr
+	</update>
+	
+	<!-- SKU별 주문 통계 -->
+	<update id="statistics.skuOrderSum" parameterClass="java.util.Map">
+		INSERT INTO 
+               <isEqual property="type" compareValue="D">xo_stat_sku_order_day_sum </isEqual>
+               <isEqual property="type" compareValue="M">xo_stat_sku_order_month_sum </isEqual>
+               (
+               <isEqual property="type" compareValue="D">stat_date </isEqual>
+               <isEqual property="type" compareValue="M">stat_month </isEqual>
+               , sku_no, order_count, order_amount, order_cancel_count, order_cancel_amount)
+		SELECT DISTINCT stat_date, sku_no
+		       , SUM(DECODE(status, '24', qty, 0)) OVER (PARTITION BY stat_date, sku_no) AS order_count
+		       , SUM(DECODE(status, '24', total_gnd_amount, 0)) OVER (PARTITION BY stat_date, sku_no) AS order_amount
+		       , SUM(DECODE(status, '25', qty, 0)) OVER (PARTITION BY stat_date, sku_no) AS order_cancel_count
+		       , SUM(DECODE(status, '25', total_gnd_amount, 0)) OVER (PARTITION BY stat_date, sku_no) AS order_cancel_amount
+		  FROM (
+		        SELECT /*+ INDEX(xod IDX_XO_ORDER_DETAIL_01)*/
+		               <isEqual property="type" compareValue="D">xoh.sale_date AS stat_date </isEqual>
+					   <isEqual property="type" compareValue="M">SUBSTR(xoh.sale_date, 0, 6) AS stat_date </isEqual>
+		               , xod.sku_no
+		               , xoh.status
+		               , xod.qty
+		               , xod.total_gnd_amount
+		          FROM xo_order_history xoh, xo_order## xo, xo_order_detail xod
+		         WHERE xoh.order_no = xo.order_no
+		           AND xo.order_no = xod.order_no
+		           <isEqual property="type" compareValue="D">AND xoh.sale_date = TO_CHAR (SYSDATE-1, 'YYYYMMDD')</isEqual>
+				   <isEqual property="type" compareValue="M">AND xoh.sale_date LIKE TO_CHAR (SYSDATE-1, 'YYYYMM') || '%'</isEqual>
+		           AND xoh.status IN ('24', '25')
+		           AND xod.cate_type IS NOT NULL
+		        )
+		 ORDER BY stat_date, sku_no
+	</update>
+	
+	<!-- 주문방식별 주문 통계 -->
+	<update id="statistics.storeSelOrder">
+		INSERT INTO xo_stat_store_sel_order_day
+		  	   (stat_date, store_sel_type, order_count, order_amount, order_cancel_count, order_cancel_amount)
+		SELECT DISTINCT stat_date, store_sel_type
+               , SUM(DECODE(status, '24', 1, 0)) OVER (PARTITION BY stat_date, store_sel_type) AS order_count
+               , SUM(DECODE(status, '24', total_pay_amt, 0)) OVER (PARTITION BY stat_date, store_sel_type) AS order_amount
+               , SUM(DECODE(status, '25', 1, 0)) OVER (PARTITION BY stat_date, store_sel_type) AS order_cancel_count
+               , SUM(DECODE(status, '25', total_pay_amt, 0)) OVER (PARTITION BY stat_date, store_sel_type) AS order_cancel_amount
+          FROM (
+                SELECT /*+ INDEX_DESC(xoh IDX_XO_ORDER_HISTORY_02) INDEX(xo PK_XO_ORDER) */
+                         xoh.sale_date AS stat_date
+                       , xoh.status
+                       , xo.store_sel_type
+                       , xo.total_pay_amt
+                  FROM xo_order_history xoh, xo_order## xo
+                 WHERE xoh.order_no = xo.order_no                   
+		           AND xoh.sale_date = TO_CHAR (SYSDATE-1, 'YYYYMMDD')
+                   AND xoh.status IN ('24', '25')          
+                   AND xo.store_sel_type in ('1','2','3','4','5','6')
+               )
+        ORDER BY stat_date, store_sel_type
+	</update>
+	
+	<!-- My Favorites 등록 통계 -->
+	<update id="statistics.myFavoritesRegInfo">
+		INSERT INTO xo_stat_my_favorites_reg_day
+			   (stat_date, cate_type, reg_user_count, reg_item_count)
+		SELECT DISTINCT stat_date, cate_type   
+		       , SUM(user_cnt) OVER (PARTITION BY stat_date, cate_type) AS reg_user_count
+		       , SUM(cnt) OVER (PARTITION BY stat_date, cate_type) AS reg_item_count
+		  FROM (
+					 SELECT 
+					   		  TO_CHAR (xf.mod_date, 'YYYYMMDD') AS stat_date
+					        , xf.cate_type
+					        , COUNT(xf.favorite_no) AS cnt
+					        , COUNT(xf.user_id) OVER(PARTITION BY TO_CHAR (xf.mod_date, 'YYYYMMDD'), cate_type, user_id) AS user_cnt
+					   FROM xo_favorite xf
+					  WHERE xf.my_favorite_yn = 'Y'
+					    AND xf.use_flag = 'Y'
+					    AND xf.cate_type IS NOT NULL
+					    AND xf.mod_date BETWEEN TRUNC (SYSDATE-1) AND (TRUNC (SYSDATE)-0.00001)
+				   GROUP BY TO_CHAR (xf.mod_date, 'YYYYMMDD') ,xf.cate_type ,xf.user_id  
+				 
+				  UNION ALL
+				 
+		 		     SELECT 
+				 	  	      TO_CHAR (xf.mod_date, 'YYYYMMDD') AS stat_date
+				            , '00' cate_type
+				            , COUNT(xf.favorite_no) AS cnt
+				            , COUNT(xf.user_id) OVER(PARTITION BY TO_CHAR (xf.mod_date, 'YYYYMMDD'), user_id) AS user_cnt
+				       FROM xo_favorite xf
+				      WHERE xf.my_favorite_yn = 'Y'
+				        AND xf.use_flag = 'Y'
+				        AND xf.cate_type IS NOT NULL
+				        AND xf.mod_date BETWEEN TRUNC (SYSDATE-1) AND (TRUNC (SYSDATE)-0.00001)
+				   GROUP BY TO_CHAR (xf.mod_date, 'YYYYMMDD'), xf.user_id
+               )
+      ORDER BY stat_date, cate_type	
+	</update>
+	
+	<!-- My Favorites 주문 통계 -->
+	<update id="statistics.myFavoritesOrderInfo">
+		INSERT INTO xo_stat_my_favorites_order_day
+			   (stat_date, order_count, order_amount, order_cancel_count, order_cancel_amount)			
+		SELECT DISTINCT stat_date
+		       , SUM(DECODE(status, '24', 1, 0)) OVER (PARTITION BY stat_date) AS order_count
+		       , SUM(DECODE(status, '24', total_pay_amt, 0)) OVER (PARTITION BY stat_date) AS order_amount
+		       , SUM(DECODE(status, '25', 1, 0)) OVER (PARTITION BY stat_date) AS order_cancel_count
+		       , SUM(DECODE(status, '25', total_pay_amt, 0)) OVER (PARTITION BY stat_date) AS order_cancel_amount
+		 FROM (
+			    SELECT /*+ INDEX_DESC(xoh IDX_XO_ORDER_HISTORY_02) */
+			             xoh.sale_date AS stat_date            
+			           , xoh.status
+			           , xo.total_pay_amt
+			      FROM (SELECT * FROM xo_order## WHERE cart_no IN ( SELECT cart_no FROM xo_cart WHERE status = '5')) xo,
+			           xo_order_history xoh
+			     WHERE xoh.order_no  = xo.order_no                   
+			       AND xoh.sale_date = TO_CHAR (SYSDATE-1, 'YYYYMMDD')                   
+			       AND xoh.status   IN ('24', '25')              
+			 )
+     ORDER BY stat_date
+	</update>
+	
+	<!-- SSG PAY 결제 통계 -->
+	<update id="statistics.ssgpay">
+		INSERT INTO xo_stat_ssgpay_day
+		 	   (  stat_date
+			    , member_type
+			    , card_count, card_amount, card_cancel_count, card_cancel_amount, card_refund_count, card_refund_amount
+			    , money_count, money_amount, money_cancel_count, money_cancel_amount, money_refund_count, money_refund_amount
+			    , multi_count, multi_card_amount, multi_money_amount, multi_cancel_count, multi_card_cancel_amount, multi_money_cancel_amount
+			    , multi_refund_count, multi_card_refund_amount, multi_money_refund_amount)        	
+		SELECT DISTINCT 
+                 stat_date
+               , member_type                
+                                  
+               , SUM (CASE WHEN pay_method ='G' AND pay_type='1' AND status = 'P' THEN 1 ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS card_count
+               , SUM (CASE WHEN pay_method ='G' AND pay_type='1' AND status = 'P' THEN amount ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS card_amount                 
+               , SUM (CASE WHEN pay_method ='G' AND pay_type='1' AND status = 'C' THEN 1 ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS card_cancel_count
+               , SUM (CASE WHEN pay_method ='G' AND pay_type='1' AND status = 'C' THEN amount ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS card_cancel_amount                 
+               , SUM (CASE WHEN pay_method ='G' AND pay_type='1' AND status = 'R' THEN 1 ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS card_refund_count
+               , SUM (CASE WHEN pay_method ='G' AND pay_type='1' AND status = 'R' THEN amount ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS card_refund_amount                               
+
+               , SUM (CASE WHEN pay_method ='M' AND pay_type='1' AND status = 'P' THEN 1 ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS money_count
+               , SUM (CASE WHEN pay_method ='M' AND pay_type='1' AND status = 'P' THEN amount ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS money_amount                 
+               , SUM (CASE WHEN pay_method ='M' AND pay_type='1' AND status = 'C' THEN 1 ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS money_cancel_count
+               , SUM (CASE WHEN pay_method ='M' AND pay_type='1' AND status = 'C' THEN amount ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS money_cancel_amount                 
+               , SUM (CASE WHEN pay_method ='M' AND pay_type='1' AND status = 'R' THEN 1 ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS money_refund_count
+               , SUM (CASE WHEN pay_method ='M' AND pay_type='1' AND status = 'R' THEN amount ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS money_refund_amount
+                
+               , SUM (CASE WHEN pay_method='G' AND pay_type='2' AND status = 'P' THEN 1 ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS multi_count                             
+               , SUM (CASE WHEN pay_method='G' AND pay_type='2' AND status = 'P' THEN amount ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS multi_card_amount                                                                                       
+               , SUM (CASE WHEN pay_method='M' AND pay_type='2' AND status = 'P' THEN amount ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS multi_money_amount                 
+                                  
+               , SUM (CASE WHEN pay_method='G' AND pay_type='2' AND status = 'C' THEN 1 ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS multi_cancel_count                             
+               , SUM (CASE WHEN pay_method='G' AND pay_type='2' AND status = 'C' THEN amount ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS multi_card_cancel_amount                             
+               , SUM (CASE WHEN pay_method='M' AND pay_type='2' AND status = 'C' THEN amount ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS multi_money_cancel_amount
+                                 
+               , SUM (CASE WHEN pay_method='G' AND pay_type='2' AND status = 'R' THEN 1 ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS multi_refund_count                             
+               , SUM (CASE WHEN pay_method='G' AND pay_type='2' AND status = 'R' THEN amount ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS multi_card_refund_amount                             
+               , SUM (CASE WHEN pay_method='M' AND pay_type='2' AND status = 'R' THEN amount ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS multi_money_refund_amount
+		FROM (
+                  SELECT /*+ INDEX(xp IDX_XO_PAYMENT_01) INDEX(xo PK_XO_ORDER)*/
+               	           TO_CHAR (xp.app_date, 'YYYYMMDD') AS stat_date
+                         , xp.pay_method, 'P' AS status , amount
+                         , CASE WHEN xo.msr_user_grade IS NULL AND xo.MSR_USER_FLAG = 'N' THEN '2'		<!-- 웹회원 -->
+                                WHEN xo.msr_user_grade = '00' THEN '3'									<!-- WELCOME -->
+                                WHEN xo.msr_user_grade = '10' OR xo.msr_user_grade = '11' THEN '4'		<!-- GREEN -->
+                                WHEN xo.msr_user_grade = '20' OR xo.msr_user_grade = '21' THEN '5'		<!-- GOLD -->
+                                WHEN xo.msr_user_grade IS NULL AND xo.MSR_USER_FLAG = 'B' THEN '6'		<!-- 비회원 -->
+                                WHEN xo.msr_user_grade IS NULL AND xo.MSR_USER_FLAG = 'J' THEN '7'		<!-- 준회원 -->
+                                ELSE '1' END AS member_type												<!-- MSR -->
+	  			         , COUNT(xp.order_no) OVER (PARTITION BY xp.order_no) AS pay_type                               
+                    FROM xo_payment## xp, xo_order## xo
+                   WHERE xp.app_date BETWEEN TRUNC (SYSDATE-1) AND (TRUNC (SYSDATE)-0.00001)
+                     AND xp.result_code = '00'
+                     AND xp.order_no = xo.order_no                                  
+                     AND xp.pay_method IN ('G','M')
+                                        
+               UNION ALL
+
+                  SELECT /*+ INDEX(xp IDX_XO_PAYMENT_01) INDEX(xo PK_XO_ORDER)*/ 
+             		       TO_CHAR (xp.cancel_date, 'YYYYMMDD') AS stat_date
+                         , xp.pay_method, xp.status , amount
+                         , CASE WHEN xo.msr_user_grade IS NULL AND xo.MSR_USER_FLAG = 'N' THEN '2'		<!-- 웹회원 -->
+                                WHEN xo.msr_user_grade = '00' THEN '3'									<!-- WELCOME -->
+                                WHEN xo.msr_user_grade = '10' OR xo.msr_user_grade = '11' THEN '4'		<!-- GREEN -->
+                                WHEN xo.msr_user_grade = '20' OR xo.msr_user_grade = '21' THEN '5'		<!-- GOLD -->
+                                WHEN xo.msr_user_grade IS NULL AND xo.MSR_USER_FLAG = 'B' THEN '6'		<!-- 비회원 -->
+                                WHEN xo.msr_user_grade IS NULL AND xo.MSR_USER_FLAG = 'J' THEN '7'		<!-- 준회원 -->
+                                ELSE '1' END AS member_type												<!-- MSR -->
+						 , COUNT(xp.order_no) OVER (PARTITION BY xp.order_no) AS pay_type                    
+                    FROM xo_payment## xp, xo_order## xo
+                   WHERE xp.cancel_date BETWEEN TRUNC (SYSDATE-1) AND (TRUNC (SYSDATE)-0.00001)
+                     AND xp.result_code = '00'
+                     AND xp.order_no = xo.order_no                                  
+                     AND xp.pay_method IN ('G','M')
+             )
+      ORDER BY stat_date, member_type
+	</update>
+	
+	<!-- 수령방식별 주문 통계 -->
+	<update id="statistics.receiveOrder" parameterClass="java.util.Map">
+		INSERT INTO 
+		  	   <isEqual property="type" compareValue="D">xo_stat_receive_order_day </isEqual>
+			   <isEqual property="type" compareValue="M">xo_stat_receive_order_month </isEqual>
+			   (
+			    <isEqual property="type" compareValue="D">stat_date </isEqual>
+			    <isEqual property="type" compareValue="M">stat_month </isEqual>
+			    , store_cd, receive_type, order_count, order_amount, order_cancel_count, order_cancel_amount)
+		SELECT DISTINCT stat_date, store_cd, receive_type
+               , SUM(DECODE(status, '24', 1, 0)) OVER (PARTITION BY stat_date, store_cd, receive_type) AS order_count
+               , SUM(DECODE(status, '24', total_pay_amt, 0)) OVER (PARTITION BY stat_date, store_cd, receive_type) AS order_amount
+               , SUM(DECODE(status, '25', 1, 0)) OVER (PARTITION BY stat_date, store_cd, receive_type) AS order_cancel_count
+               , SUM(DECODE(status, '25', total_pay_amt, 0)) OVER (PARTITION BY stat_date, store_cd, receive_type) AS order_cancel_amount
+		  FROM (
+                 SELECT /*+ INDEX_DESC(xoh IDX_XO_ORDER_HISTORY_02) INDEX(xo PK_XO_ORDER)*/
+		                <isEqual property="type" compareValue="D">xoh.sale_date AS stat_date </isEqual>
+					    <isEqual property="type" compareValue="M">SUBSTR(xoh.sale_date, 0, 6) AS stat_date </isEqual>                	
+                        , xoh.store_cd                        
+                        , NVL(xo.receive_type,'S') AS receive_type
+                        , xoh.status
+                        , xo.total_pay_amt
+                   FROM xo_order_history xoh, xo_order## xo
+                  WHERE xoh.order_no = xo.order_no                   
+                   <isEqual property="type" compareValue="D">AND xoh.sale_date = TO_CHAR (SYSDATE-1, 'YYYYMMDD')</isEqual>
+				   <isEqual property="type" compareValue="M">AND xoh.sale_date LIKE TO_CHAR (SYSDATE-1, 'YYYYMM') || '%'</isEqual>
+                    AND xoh.status IN ('24', '25')  
+                    AND (xo.receive_type IN ('S','C') OR xo.receive_type IS NULL)                  
+                )
+         ORDER BY stat_date, store_cd, receive_type
+	</update>
+	
+	<!-- 행사별 주문 일/월 통계 -->
+	<update id="statistics.eventOrder" parameterClass="java.util.Map">
+		INSERT INTO 
+		  	   <isEqual property="type" compareValue="D">xo_stat_event_order_day </isEqual>
+               <isEqual property="type" compareValue="M">xo_stat_event_order_month </isEqual>
+			   (
+				<isEqual property="type" compareValue="D">stat_date </isEqual>
+				<isEqual property="type" compareValue="M">stat_month </isEqual>
+				, event_code, store_cd, timecd, micd, event_type
+				, order_count, item_count, item_amount, event_dc_count, event_dc_amount, tumbler_dc_count, tumbler_dc_amount, extra_dc_count, extra_dc_amount, gnd_amount
+				, cancel_order_count, cancel_item_count, cancel_item_amount, cancel_event_dc_count, cancel_event_dc_amount, cancel_tumbler_dc_count, cancel_tumbler_dc_amount
+				, cancel_extra_dc_count, cancel_extra_dc_amount, cancel_gnd_amount)	
+		SELECT DISTINCT 
+		         a.stat_date 
+		       , a.event_code
+		       , a.store_cd
+		       , a.timecd
+		       , a.micd                         
+		       , xem.event_type    
+		       , COUNT(a.order_count)  OVER (PARTITION BY a.stat_date, a.event_code, a.store_cd, a.timecd, a.micd) AS order_count 
+		       , a.item_count 
+		       , a.item_amount 
+		       , a.event_dc_count
+		       , a.event_dc_amount 
+		       , a.tumbler_dc_count
+		       , a.tumbler_dc_amount 
+		       , a.extra_dc_count   
+		       , a.extra_dc_amount
+		       , (a.item_amount - a.event_dc_amount - a.tumbler_dc_amount - a.extra_dc_amount) as gnd_amount      
+		
+		       , COUNT(a.cancel_order_count)  OVER (PARTITION BY a.stat_date, a.event_code, a.store_cd, a.timecd, a.micd) AS cancel_order_count         
+		       , a.cancel_item_count  
+		       , a.cancel_item_amount 
+		       , a.cancel_event_dc_count
+		       , a.cancel_event_dc_amount 
+		       , a.cancel_tumbler_dc_count
+		       , a.cancel_tumbler_dc_amount 
+		       , a.cancel_extra_dc_count 
+		       , a.cancel_extra_dc_amount            
+		       , (a.cancel_item_amount - a.cancel_event_dc_amount - a.cancel_tumbler_dc_amount - a.cancel_extra_dc_amount) as cancel_gnd_amount		    
+		 FROM (                     
+		        SELECT DISTINCT
+		                 stat_date 
+		               , event_code
+		               , store_cd
+		               , timecd
+		               , micd  
+		                
+		               , MAX(DECODE(status, '24', order_no, NULL)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd, order_no) as order_count
+		               , SUM(DECODE(status, '24', item_count, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd) AS item_count                            <!--품목건수 -->
+		               , SUM(DECODE(status, '24', item_amount, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd) AS item_amount                          <!--품목금액 -->
+		               , SUM(DECODE(status, '24', event_dc_count, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd) AS event_dc_count                    <!--행사 할인건수 -->
+		               , SUM(DECODE(status, '24', event_dc_amount, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd) AS event_dc_amount                  <!--행사 할인금액 -->                
+		               , SUM(DECODE(status, '24', tumbler_dc_count, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd) AS tumbler_dc_count                <!--개인컵 할인건수 -->
+		               , SUM(DECODE(status, '24', tumbler_dc_amount, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd) AS tumbler_dc_amount              <!--개인컵 할인금액 -->
+		               , SUM(DECODE(status, '24', extra_dc_count, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd) AS extra_dc_count                    <!--EXTRA 할인건수 -->
+		               , SUM(DECODE(status, '24', extra_dc_amount, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd) AS extra_dc_amount                  <!--EXTRA 할인금액 -->   
+		
+		               , MAX(DECODE(status, '25', order_no, NULL)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd, order_no) as cancel_order_count                
+		               , SUM(DECODE(status, '25', item_count, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd) AS cancel_item_count                     <!--품목취소건수 -->
+		               , SUM(DECODE(status, '25', item_amount, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd) AS cancel_item_amount                   <!--품목취소금액 -->
+		               , SUM(DECODE(status, '25', event_dc_count, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd) AS cancel_event_dc_count             <!--행사 할인취소건수 -->
+		               , SUM(DECODE(status, '25', event_dc_amount, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd) AS cancel_event_dc_amount           <!--행사 할인취소금액 -->    
+		               , SUM(DECODE(status, '25', tumbler_dc_count, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd) AS cancel_tumbler_dc_count         <!--개인컵 할인취소건수 -->
+		               , SUM(DECODE(status, '25', tumbler_dc_amount, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd) AS cancel_tumbler_dc_amount       <!--개인컵 할인취소금액 -->
+		               , SUM(DECODE(status, '25', extra_dc_count, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd) AS cancel_extra_dc_count             <!--EXTRA 할인취소건수 -->
+		               , SUM(DECODE(status, '25', extra_dc_amount, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd) AS cancel_extra_dc_amount           <!--EXTRA 할인취소금액 -->             
+		         FROM (                 
+		                SELECT /*+ INDEX(xod IDX_XO_ORDER_DETAIL_01)*/ 
+		                		<isEqual property="type" compareValue="D">xoh.sale_date AS stat_date </isEqual>
+					   			<isEqual property="type" compareValue="M">SUBSTR(xoh.sale_date, 0, 6) AS stat_date </isEqual>
+		                       , MAX(event_code) OVER (PARTITION BY xod.order_no) AS event_code                       
+		                       , xoh.store_cd                       
+		                       , TO_CHAR(xoh.reg_date, 'HH24') AS timecd
+		                       , CASE WHEN TO_CHAR(xoh.reg_date, 'MI') <![CDATA[<]]> '30' THEN '00' ELSE '30' END AS micd                                                                                        
+		                       , xoh.status                                                                    
+		                       , xod.sku_no                       
+		                       , xo.order_no                                              
+		                       , CASE WHEN xod.cate_type is not null THEN xod.qty ELSE 0 END AS item_count
+		                       , xod.item_amount   AS item_amount
+		                       , CASE WHEN xod.event_code is not null and xod.discount > 0 THEN 1 ELSE 0 END AS event_dc_count
+		                       , CASE WHEN xod.event_code is not null and xod.discount > 0 THEN xod.discount ELSE 0 END AS event_dc_amount
+		                       , CASE WHEN xod.tumbler_dc_amt > 0 THEN 1 ELSE 0 END AS tumbler_dc_count
+		                       , xod.tumbler_dc_amt AS tumbler_dc_amount                                                                                                                                                                                                                                                              
+		                       , CASE WHEN xod.sck_coupon_no = '30999' AND xod.coupon > 0 THEN 1 ELSE 0 END AS extra_dc_count
+		                       , CASE WHEN xod.sck_coupon_no = '30999' AND xod.coupon > 0 THEN xod.coupon ELSE 0 END AS extra_dc_amount                                                                                                                                                                                       
+		                  FROM xo_order_history xoh, xo_order## xo, xo_order_detail xod
+		                 WHERE xoh.order_no = xo.order_no
+		                   AND xo.order_no = xod.order_no		                 
+		                   AND xoh.status IN ('24', '25')                   
+		                   AND xod.item_amount > 0 
+		                   AND xod.event_code IS NOT NULL
+                           AND xod.cate_type IS NOT NULL
+		              <isEqual property="type" compareValue="D">
+		                   AND xoh.sale_date = TO_CHAR (SYSDATE-1, 'YYYYMMDD')
+		              ORDER BY xoh.sale_date,  xoh.store_cd, TO_CHAR(xoh.reg_date, 'HH24'), xod.item_seq
+		              </isEqual>
+		              <isEqual property="type" compareValue="M">
+		                   AND xoh.sale_date LIKE TO_CHAR (SYSDATE-1, 'YYYYMM') || '%'
+		              ORDER BY SUBSTR(xoh.sale_date, 0, 6),  xoh.store_cd, TO_CHAR(xoh.reg_date, 'HH24'), xod.item_seq
+		              </isEqual>
+		            )
+		      ) a, xo_event_mst xem    		    
+		WHERE a.event_code = xem.event_code 
+	</update>
+
+	<!-- 행사별 SKU주문 일/월 통계 -->
+	<update id="statistics.eventSkuOrder" parameterClass="java.util.Map">
+		INSERT INTO 
+			   <isEqual property="type" compareValue="D">xo_stat_event_sku_order_day </isEqual>
+			   <isEqual property="type" compareValue="M">xo_stat_event_sku_order_month </isEqual>
+			   (
+			    <isEqual property="type" compareValue="D">stat_date </isEqual>
+			    <isEqual property="type" compareValue="M">stat_month </isEqual>
+			    , event_code, store_cd, timecd, micd, sku_no, event_type, cont_group_type
+			    , item_count, item_amount, event_dc_count, event_dc_amount, tumbler_dc_count, tumbler_dc_amount, extra_dc_count, extra_dc_amount, gnd_amount
+			    , cancel_order_count, cancel_item_count, cancel_item_amount, cancel_event_dc_count, cancel_event_dc_amount, cancel_tumbler_dc_count, cancel_tumbler_dc_amount
+			    , cancel_extra_dc_count, cancel_extra_dc_amount, cancel_gnd_amount)	
+		SELECT DISTINCT
+		         a.stat_date 
+   		       , a.event_code
+		       , a.store_cd
+		       , a.timecd
+		       , a.micd                  
+		       , a.sku_no       
+		       , xem.event_type
+		       , xem.apply_method_type1     
+		       , a.item_count 
+		       , a.item_amount 
+		       , a.event_dc_count
+		       , a.event_dc_amount 
+		       , a.tumbler_dc_count
+		       , a.tumbler_dc_amount 
+		       , a.extra_dc_count   
+		       , a.extra_dc_amount
+		       , (a.item_amount - a.event_dc_amount - a.tumbler_dc_amount - a.extra_dc_amount) as gnd_amount      
+		         
+		       , a.cancel_order_count
+		       , a.cancel_item_count  
+		       , a.cancel_item_amount 
+		       , a.cancel_event_dc_count
+		       , a.cancel_event_dc_amount 
+		       , a.cancel_tumbler_dc_count
+		       , a.cancel_tumbler_dc_amount 
+		       , a.cancel_extra_dc_count 
+		       , a.cancel_extra_dc_amount            
+		       ,(a.cancel_item_amount - a.cancel_event_dc_amount - a.cancel_tumbler_dc_amount - a.cancel_extra_dc_amount) as cancel_gnd_amount		    
+		FROM (                     
+		        SELECT DISTINCT
+		                 stat_date 
+		               , event_code
+		               , store_cd
+		               , timecd
+		               , micd  
+		               , sku_no
+		                
+		               , cate_type
+		               , SUM(DECODE(status, '24', item_count, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd, sku_no) AS item_count                            <!--품목건수 -->
+		               , SUM(DECODE(status, '24', item_amount, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd, sku_no) AS item_amount                          <!--품목금액 -->
+		               , SUM(DECODE(status, '24', event_dc_count, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd, sku_no) AS event_dc_count                    <!--행사 할인건수 -->
+		               , SUM(DECODE(status, '24', event_dc_amount, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd, sku_no) AS event_dc_amount                  <!--행사 할인금액 -->
+		               , SUM(DECODE(status, '24', tumbler_dc_count, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd, sku_no) AS tumbler_dc_count                <!--개인컵 할인건수 -->
+		               , SUM(DECODE(status, '24', tumbler_dc_amount, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd, sku_no) AS tumbler_dc_amount              <!--개인컵 할인금액 -->
+		               , SUM(DECODE(status, '24', extra_dc_count, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd, sku_no) AS extra_dc_count                    <!--EXTRA 할인건수 -->
+		               , SUM(DECODE(status, '24', extra_dc_amount, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd, sku_no) AS extra_dc_amount                  <!--EXTRA 할인금액 -->
+		                
+		               , SUM(DECODE(status, '25', 1, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd, sku_no) AS cancel_order_count                     		 <!--주문취소건수 -->
+		               , SUM(DECODE(status, '25', item_count, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd, sku_no) AS cancel_item_count                     <!--품목취소건수 -->
+		               , SUM(DECODE(status, '25', item_amount, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd, sku_no) AS cancel_item_amount                   <!--품목취소금액 -->
+		               , SUM(DECODE(status, '25', event_dc_count, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd, sku_no) AS cancel_event_dc_count             <!--행사 할인취소건수 -->
+		               , SUM(DECODE(status, '25', event_dc_amount, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd, sku_no) AS cancel_event_dc_amount           <!--행사 할인취소금액 -->
+		               , SUM(DECODE(status, '25', tumbler_dc_count, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd, sku_no) AS cancel_tumbler_dc_count         <!--개인컵 할인취소건수 -->
+		               , SUM(DECODE(status, '25', tumbler_dc_amount, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd, sku_no) AS cancel_tumbler_dc_amount       <!--개인컵 할인취소금액 -->
+		               , SUM(DECODE(status, '25', extra_dc_count, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd, sku_no) AS cancel_extra_dc_count             <!--EXTRA 할인취소건수 -->
+		               , SUM(DECODE(status, '25', extra_dc_amount, 0)) OVER (PARTITION BY stat_date, event_code, store_cd, timecd, micd, sku_no) AS cancel_extra_dc_amount           <!--EXTRA 할인취소금액 -->             
+		        FROM (                 
+		                SELECT /*+ INDEX(xod IDX_XO_ORDER_DETAIL_01)*/                       
+		                	   <isEqual property="type" compareValue="D">xoh.sale_date AS stat_date </isEqual>
+					   		   <isEqual property="type" compareValue="M">SUBSTR(xoh.sale_date, 0, 6) AS stat_date </isEqual>		                       
+		                       , MAX(event_code) OVER (PARTITION BY xod.order_no) AS event_code                       
+		                       , xoh.store_cd                       
+		                       , TO_CHAR(xoh.reg_date, 'HH24') AS timecd
+		                       , CASE WHEN TO_CHAR(xoh.reg_date, 'MI') <![CDATA[<]]> '30' THEN '00' ELSE '30' END AS micd                                                                                        
+		                       , xoh.status                                                                    
+		                       , xod.sku_no                
+		                       , xod.cate_type
+		                       , xo.order_no                                                     
+		                       , CASE WHEN xod.cate_type is not null THEN xod.qty ELSE 0 END AS item_count
+		                       , xod.item_amount   AS item_amount
+		                       , CASE WHEN xod.event_code is not null and xod.discount > 0 THEN 1 ELSE 0 END AS event_dc_count
+		                       , CASE WHEN xod.event_code is not null and xod.discount > 0 THEN xod.discount ELSE 0 END AS event_dc_amount
+		                       , CASE WHEN xod.tumbler_dc_amt > 0 THEN 1 ELSE 0 END AS tumbler_dc_count
+		                       , xod.tumbler_dc_amt AS tumbler_dc_amount                                                                                                                                                                                                                                                              
+		                       , CASE WHEN xod.sck_coupon_no = '30999' AND xod.coupon > 0 THEN 1 ELSE 0 END AS extra_dc_count
+		                       , CASE WHEN xod.sck_coupon_no = '30999' AND xod.coupon > 0 THEN xod.coupon ELSE 0 END AS extra_dc_amount                                                                                                                                                                                       
+		                  FROM xo_order_history xoh, xo_order## xo, xo_order_detail xod
+		                 WHERE xoh.order_no = xo.order_no
+		                   AND xo.order_no = xod.order_no		                                    
+		                   AND xoh.status IN ('24', '25')                   
+		                   AND xod.item_amount > 0 
+						   AND xod.event_code IS NOT NULL
+                           AND xod.cate_type IS NOT NULL
+		              <isEqual property="type" compareValue="D">
+		                   AND xoh.sale_date = TO_CHAR (SYSDATE-1, 'YYYYMMDD')
+		              ORDER BY xoh.sale_date,  xoh.store_cd, TO_CHAR(xoh.reg_date, 'HH24'), xod.item_seq
+		              </isEqual>
+		              <isEqual property="type" compareValue="M">
+		                   AND xoh.sale_date LIKE TO_CHAR (SYSDATE-1, 'YYYYMM') || '%'
+		              ORDER BY SUBSTR(xoh.sale_date, 0, 6),  xoh.store_cd, TO_CHAR(xoh.reg_date, 'HH24'), xod.item_seq
+		              </isEqual>		              
+		             )		             
+		     ) a, xo_event_mst xem
+	   WHERE a.event_code = xem.event_code
+	</update>
+	
+	
+	<!-- 홀케익 결제수단별 매출 일통계 -->
+	<!-- [PG확대] 2020.05.06 - 일 통계 테이블에 PG사 코드 추가 등록 -->
+	<update id="statistics.payMethodWholecake">
+		INSERT INTO xo_stat_wcake_pay_method_day
+		            (stat_date, member_type, pay_method, COUNT, amount, cancel_count,
+		             cancel_amount, refund_count, refund_amount, pgcm_code)
+		   SELECT DISTINCT stat_date, member_type, pay_method,
+		                   SUM (DECODE (status, 'P', 1, 0)) OVER (PARTITION BY stat_date, member_type, pay_method, pgcm_code) AS p_count,
+		                   SUM (DECODE (status, 'P', amount, 0)) OVER (PARTITION BY stat_date, member_type, pay_method, pgcm_code) AS p_amount,
+		                   SUM (DECODE (status, 'C', 1, 0)) OVER (PARTITION BY stat_date, member_type, pay_method, pgcm_code) AS c_count,
+		                   SUM (DECODE (status, 'C', amount, 0)) OVER (PARTITION BY stat_date, member_type, pay_method, pgcm_code) AS c_amount,
+		                   SUM (DECODE (status, 'R', 1, 0)) OVER (PARTITION BY stat_date, member_type, pay_method, pgcm_code) AS r_count,
+		                   SUM (DECODE (status, 'R', amount, 0)) OVER (PARTITION BY stat_date, member_type, pay_method, pgcm_code) AS r_amount,
+		                   pgcm_code
+		              FROM (SELECT /*+ INDEX(xp IDX_XO_PAYMENT_01) INDEX(xwo PK_XO_WHOLECAKE_ORDER)*/
+		                           TO_CHAR (xp.app_date, 'YYYYMMDD') AS stat_date,
+		                           xp.pay_method, 'P' AS status, amount,
+		                           CASE
+		                              WHEN xwo.msr_user_grade IS NULL THEN '2'
+		                              WHEN xwo.msr_user_grade = '00' THEN '3'
+		                              WHEN xwo.msr_user_grade = '10' OR xwo.msr_user_grade = '11' THEN '4'
+		                              WHEN xwo.msr_user_grade = '20' OR xwo.msr_user_grade = '21' THEN '5'
+		                              ELSE '1'
+		                           END AS member_type,
+		                           CASE
+		                              WHEN xp.pgcm_code IS NOT NULL THEN xp.pgcm_code
+		                              WHEN xp.pay_method = 'C' THEN '001'
+		                              WHEN xp.pay_method = 'G' THEN '002'
+		                              WHEN xp.pay_method = 'M' THEN '002'
+		                              ELSE '000'
+		                           END AS pgcm_code
+		                      FROM xo_payment## xp, xo_wholecake_order## xwo
+		                     WHERE xp.app_date >= TRUNC (SYSDATE - 1)
+		                       AND xp.app_date <![CDATA[ < ]]> TRUNC (SYSDATE)
+		                       AND xp.result_code = '00'
+		                       AND xp.order_no = xwo.order_no
+		                    UNION ALL
+		                    SELECT /*+ INDEX(xp IDX_XO_PAYMENT_02) INDEX(xwo PK_XO_WHOLECAKE_ORDER)*/
+		                           TO_CHAR (xp.cancel_date, 'YYYYMMDD') AS stat_date,
+		                           xp.pay_method, xp.status, amount,
+		                           CASE
+		                              WHEN xwo.msr_user_grade IS NULL THEN '2'
+		                              WHEN xwo.msr_user_grade = '00' THEN '3'
+		                              WHEN xwo.msr_user_grade = '10' OR xwo.msr_user_grade = '11' THEN '4'
+		                              WHEN xwo.msr_user_grade = '20' OR xwo.msr_user_grade = '21' THEN '5'
+		                              ELSE '1'
+		                           END AS member_type,
+		                           CASE
+		                              WHEN xp.pgcm_code IS NOT NULL THEN xp.pgcm_code
+		                              WHEN xp.pay_method = 'C' THEN '001'
+		                              WHEN xp.pay_method = 'G' THEN '002'
+		                              WHEN xp.pay_method = 'M' THEN '002'
+		                              ELSE '000'
+		                           END AS pgcm_code
+		                      FROM xo_payment## xp, xo_wholecake_order## xwo
+		                     WHERE xp.cancel_date >= TRUNC (SYSDATE - 1)
+		                       AND xp.cancel_date <![CDATA[ < ]]> TRUNC (SYSDATE)
+		                       AND xp.result_code = '00'
+		                       AND xp.order_no = xwo.order_no)
+		          ORDER BY stat_date, member_type, pay_method, pgcm_code
+	</update>
+	
+	<!-- 홀케익 SSG PAY 결제 일통계 -->
+	<update id="statistics.ssgpayWholecake">
+		INSERT INTO XO_STAT_WCAKE_SSGPAY_DAY
+		 	   (  stat_date
+			    , member_type
+			    , card_count, card_amount, card_cancel_count, card_cancel_amount, card_refund_count, card_refund_amount
+			    , money_count, money_amount, money_cancel_count, money_cancel_amount, money_refund_count, money_refund_amount
+			    , multi_count, multi_card_amount, multi_money_amount, multi_cancel_count, multi_card_cancel_amount, multi_money_cancel_amount
+			    , multi_refund_count, multi_card_refund_amount, multi_money_refund_amount)
+		SELECT DISTINCT 
+		                 stat_date
+		               , member_type                
+		                                  
+		               , SUM (CASE WHEN pay_method ='G' AND pay_type='1' AND status = 'P' THEN 1 ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS card_count
+		               , SUM (CASE WHEN pay_method ='G' AND pay_type='1' AND status = 'P' THEN amount ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS card_amount                 
+		               , SUM (CASE WHEN pay_method ='G' AND pay_type='1' AND status = 'C' THEN 1 ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS card_cancel_count
+		               , SUM (CASE WHEN pay_method ='G' AND pay_type='1' AND status = 'C' THEN amount ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS card_cancel_amount                 
+		               , SUM (CASE WHEN pay_method ='G' AND pay_type='1' AND status = 'R' THEN 1 ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS card_refund_count
+		               , SUM (CASE WHEN pay_method ='G' AND pay_type='1' AND status = 'R' THEN amount ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS card_refund_amount                               
+		
+		               , SUM (CASE WHEN pay_method ='M' AND pay_type='1' AND status = 'P' THEN 1 ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS money_count
+		               , SUM (CASE WHEN pay_method ='M' AND pay_type='1' AND status = 'P' THEN amount ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS money_amount                 
+		               , SUM (CASE WHEN pay_method ='M' AND pay_type='1' AND status = 'C' THEN 1 ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS money_cancel_count
+		               , SUM (CASE WHEN pay_method ='M' AND pay_type='1' AND status = 'C' THEN amount ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS money_cancel_amount                 
+		               , SUM (CASE WHEN pay_method ='M' AND pay_type='1' AND status = 'R' THEN 1 ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS money_refund_count
+		               , SUM (CASE WHEN pay_method ='M' AND pay_type='1' AND status = 'R' THEN amount ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS money_refund_amount
+		                
+		               , SUM (CASE WHEN pay_method='G' AND pay_type='2' AND status = 'P' THEN 1 ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS multi_count                             
+		               , SUM (CASE WHEN pay_method='G' AND pay_type='2' AND status = 'P' THEN amount ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS multi_card_amount                                                                                       
+		               , SUM (CASE WHEN pay_method='M' AND pay_type='2' AND status = 'P' THEN amount ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS multi_money_amount                 
+		                                  
+		               , SUM (CASE WHEN pay_method='G' AND pay_type='2' AND status = 'C' THEN 1 ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS multi_cancel_count                             
+		               , SUM (CASE WHEN pay_method='G' AND pay_type='2' AND status = 'C' THEN amount ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS multi_card_cancel_amount                             
+		               , SUM (CASE WHEN pay_method='M' AND pay_type='2' AND status = 'C' THEN amount ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS multi_money_cancel_amount
+		                                 
+		               , SUM (CASE WHEN pay_method='G' AND pay_type='2' AND status = 'R' THEN 1 ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS multi_refund_count                             
+		               , SUM (CASE WHEN pay_method='G' AND pay_type='2' AND status = 'R' THEN amount ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS multi_card_refund_amount                             
+		               , SUM (CASE WHEN pay_method='M' AND pay_type='2' AND status = 'R' THEN amount ELSE 0 END) OVER (PARTITION BY  stat_date, member_type) AS multi_money_refund_amount
+		        FROM (
+		                  SELECT /* + INDEX(xp IDX_XO_PAYMENT_01) INDEX(xwo PK_XO_WHOLECAKE_ORDER) */
+		                              TO_CHAR (xp.app_date, 'YYYYMMDD') AS stat_date
+		                         , xp.pay_method, 'P' AS status , amount
+		                         , CASE WHEN xwo.msr_user_grade IS NULL THEN '2'
+		                                WHEN xwo.msr_user_grade = '00' THEN '3'
+		                                WHEN xwo.msr_user_grade = '10' OR xwo.msr_user_grade = '11' THEN '4'
+		                                WHEN xwo.msr_user_grade = '20' OR xwo.msr_user_grade = '21' THEN '5'
+		                                ELSE '1' END AS member_type
+		                           , COUNT(xp.order_no) OVER (PARTITION BY xp.order_no) AS pay_type                               
+		                    FROM xo_payment## xp, xo_wholecake_order## xwo
+		                   WHERE xp.app_date BETWEEN TRUNC (SYSDATE - 1) AND (TRUNC (SYSDATE) - 0.00001)
+		                     AND xp.result_code = '00'
+		                     AND xp.order_no = xwo.order_no                                  
+		                     AND xp.pay_method IN ('G', 'M')
+		                                        
+		               UNION ALL
+		                
+		                  SELECT /* + INDEX(xp IDX_XO_PAYMENT_01) INDEX(xwo PK_XO_WHOLECAKE_ORDER) */ 
+		                            TO_CHAR (xp.cancel_date, 'YYYYMMDD') AS stat_date
+		                         , xp.pay_method, xp.status , amount
+		                         , CASE WHEN xwo.msr_user_grade IS NULL THEN '2'
+		                                WHEN xwo.msr_user_grade = '00' THEN '3'
+		                                WHEN xwo.msr_user_grade = '10' OR xwo.msr_user_grade = '11' THEN '4'
+		                                WHEN xwo.msr_user_grade = '20' OR xwo.msr_user_grade = '21' THEN '5'
+		                                ELSE '1' END AS member_type
+		                         , COUNT(xp.order_no) OVER (PARTITION BY xp.order_no) AS pay_type                    
+		                    FROM xo_payment## xp, xo_wholecake_order## xwo
+		                   WHERE xp.cancel_date BETWEEN TRUNC (SYSDATE - 1) AND (TRUNC (SYSDATE) - 0.00001)
+		                     AND xp.result_code = '00'
+		                     AND xp.order_no = xwo.order_no                                  
+		                     AND xp.pay_method IN ('G', 'M')
+		             )
+		      ORDER BY stat_date, member_type	
+	</update>
+	
+	<!-- 주문방식별 주문 일통계(OpenApi용) -->
+	<update id="statistics.storeSelOrderOpenApi">
+        INSERT INTO xo_stat_store_sel_order_day
+               (stat_date, store_sel_type, order_count, order_amount, order_cancel_count, order_cancel_amount)
+        SELECT DISTINCT stat_date
+             , DECODE (model_type,  '81', 'A',  '82', 'B', '84', 'C') AS store_sel_type
+             , SUM(DECODE(status, '24', 1, 0)) OVER (PARTITION BY stat_date, model_type) AS order_count
+             , SUM(DECODE(status, '24', total_pay_amt, 0)) OVER (PARTITION BY stat_date, model_type) AS order_amount
+             , SUM(DECODE(status, '25', 1, 0)) OVER (PARTITION BY stat_date, model_type) AS order_cancel_count
+             , SUM(DECODE(status, '25', total_pay_amt, 0)) OVER (PARTITION BY stat_date, model_type) AS order_cancel_amount
+          FROM (
+                SELECT /*+ INDEX_DESC(xoh IDX_XO_ORDER_HISTORY_02) INDEX(xo PK_XO_ORDER) */
+                         xoh.sale_date AS stat_date
+                       , xoh.status
+                       , xo.store_sel_type
+                       , xo.total_pay_amt
+                       , xo.model_type
+                  FROM xo_order_history xoh, xo_order## xo
+                 WHERE xoh.order_no = xo.order_no                   
+                   AND xoh.sale_date = TO_CHAR (SYSDATE - 1, 'YYYYMMDD')
+                   AND xoh.status IN ('24', '25')
+                   AND xo.model_type IN ('81', '82', '84')                   
+               )
+        ORDER BY stat_date, store_sel_type
+	</update>
+	
+	<!-- 매장별 주문 예약 통계 -->
+	<update id="statistics.storeOrderReservation">
+		INSERT INTO xo_stat_store_r_order_day
+			   (stat_date, store_cd, bankcd, timecd, micd, gstdgr, order_count, order_amount, order_cancel_count, order_cancel_amount)	
+		SELECT DISTINCT stat_date, store_cd, bankcd, hh, mi, gstdgr
+		       , SUM(DECODE(status, '24', 1, 0)) OVER (PARTITION BY stat_date, store_cd, bankcd, hh, mi, gstdgr) AS order_count
+		       , SUM(DECODE(status, '24', total_pay_amt, 0)) OVER (PARTITION BY stat_date, store_cd, bankcd, hh, mi, gstdgr) AS order_amount
+		       , SUM(DECODE(status, '25', 1, 0)) OVER (PARTITION BY stat_date, store_cd, bankcd, hh, mi, gstdgr) AS order_cancel_count
+		       , SUM(DECODE(status, '25', total_pay_amt, 0)) OVER (PARTITION BY stat_date, store_cd, bankcd, hh, mi, gstdgr) AS order_cancel_amount
+		  FROM (   
+		        SELECT 
+		               xoh.sale_date AS stat_date
+		               , xoh.store_cd
+		               , NVL(xo.bankcd, '10') AS bankcd
+		               , TO_CHAR(xoh.reg_date, 'HH24') AS hh
+		               , CASE WHEN TO_CHAR(xoh.reg_date, 'MI') <![CDATA[<]]> '30' THEN '00' ELSE '30' END AS mi
+		               , NVL(xo.gstdgr, '22') AS gstdgr
+		               , xoh.status
+		               , xo.total_pay_amt
+		               , xo.order_no
+		          FROM xo_order## xo, xo_order_history xoh, xo_order_reservation xor
+		         WHERE xo.order_no = xoh.order_no
+		           AND xoh.order_no = xor.order_no
+		           AND xoh.sale_date = TO_CHAR (SYSDATE-1, 'YYYYMMDD')
+		           AND xoh.status IN ('24', '25')
+		           AND xor.reservation_type = 'R'
+		       )                
+		ORDER BY stat_date, store_cd, bankcd, hh, mi, gstdgr		
+	</update>
+</sqlMap>

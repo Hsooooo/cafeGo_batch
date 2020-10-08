@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="coupon">
+
+	<!-- 쿠폰 마스터 정보 조회 -->
+	<select id="coupon.getCouponMaster" parameterClass="java.util.Map" resultClass="co.kr.istarbucks.xo.batch.common.dto.msr.CouponMasterDto">
+		SELECT /* [coupon.xml][coupon.getCouponMaster]*/ 
+		       cm.coupon_code, 
+		       cm.coupon_name,
+		       cm.user_coupon_name, 
+		       cm.coupon_grade, 
+		       cm.coupon_type, 
+		       cm.coupon_publication_seq, 
+		       cm.coupon_publication_date, 
+		       cm.coupon_group, 
+		       NVL(cm.valid_day,0) AS valid_day,
+		       NVL(coupon_start_date, TO_CHAR(SYSDATE, 'YYYYMMDD')) AS coupon_start_date,
+		       NVL(coupon_end_date, TO_CHAR(SYSDATE - 1 + NVL(cm.valid_day, 0), 'YYYYMMDD')) AS coupon_end_date,
+		       cm.coupon_policy_code, 
+		       cm.user_coupon_name, 
+		       cm.gift_reg_coupon_title,
+               cm.use_product,
+               cm.use_notice,
+               cm.coupon_desc,		       
+		       rp.gift_send_max_cnt,              <!-- 쿠폰 선물 최대 회 수 -->
+		       rp.gift_discard_max_cnt,           <!-- 쿠폰 선물취소 최대 회 수 -->
+		       rp.gift_mms_retry_max_cnt,         <!-- 쿠폰 MMS 재전송 최대 회 수 -->
+		       (SELECT crm.user_number
+		          FROM MSR_CARD_REG_MEMBER crm
+		         WHERE crm.user_id = #sckUserId#
+		           AND crm.user_status = 'J') AS sck_user_number	<!-- SCK 회원번호 -->
+		  FROM MSR_COUPON_MASTER cm
+		       LEFT OUTER JOIN MSR_REWARD_POLICY rp ON ROWNUM = 1
+		 WHERE cm.coupon_code = #couponCode# 
+		   AND cm.coupon_policy_code = #couponPolicyCode#
+		   AND cm.coupon_publication_seq = #couponPublicationSeq#
+	</select>
+	
+	<!-- 쿠폰 발행을 위한 MSR 회원정보 조회 -->
+	<select id="coupon.getCardRegMember" parameterClass="java.util.Map" resultClass="co.kr.istarbucks.xo.batch.common.dto.msr.CardRegMemberDto">
+		SELECT /* [coupon.xml][coupon.getCardRegMember] */
+		       crm.user_number,                  <!-- 사용자 고유번호 -->
+		       crm.user_id,                      <!-- 사용자 아이디 -->
+		       crm.user_status,                  <!-- 사용자 상태{J-가입, X-해지} -->
+		       crm.reg_date,                     <!-- 사용자 등록일 -->
+		       crm.user_grade,                   <!-- 회원 등급 {00- WELCOME, 10-GREEN, 11-gGREEN, 20-GOLD, 21-gGOLD} -->
+		       crm.user_name,                    <!-- 사용자 이름 -->
+		       crm.grade_check_flag,             <!-- 등급 조정 여부 {Y-조정대상, N-조정미대상} -->
+		       crm.device_number,                <!-- 사용자기기 고유번호 -->
+		       crm.star_year,                    <!-- Star멤버년도(RR) -->
+		       crm.ipin_dup_key AS ipinDupKey    <!-- 아이핀 키 -->
+		  FROM MSR_CARD_REG_MEMBER crm
+		 WHERE crm.user_id = #userId#
+		   AND crm.user_status = 'J'
+	</select>
+	
+	<!-- 쿠폰 번호 채번 (다건) -->
+	<select id="coupon.getCouponNumberList" parameterClass="java.util.Map" resultClass="co.kr.istarbucks.xo.batch.common.dto.msr.CouponPublicationListDto">
+		<![CDATA[
+		    SELECT /* [coupon.xml][coupon.insertCouponPublicationList] */
+		           #couponCode# AS coupon_code,
+		           FN_COUPON_NUMBER(#couponCode#) AS coupon_number
+		      FROM DUAL
+		CONNECT BY LEVEL <= TO_NUMBER(#couponCnt#) 
+		]]>			
+	</select>
+
+	<!-- 쿠폰 번호/선물번호 번호 채번 (다건) -->
+	<select id="coupon.getCouponNumberListForGift" parameterClass="java.util.Map" resultClass="co.kr.istarbucks.xo.batch.common.dto.msr.CouponPublicationListDto">
+		    SELECT /* [coupon.xml][coupon.getCouponNumberListForGift] */
+		           #couponCode# AS coupon_code,
+		           FN_COUPON_NUMBER(#couponCode#) AS coupon_number,     <!-- 쿠폰일련번호 -->
+		           FN_GIFT_COUPON_NUMBER AS gift_send_coupon_num        <!-- 쿠폰선물전송번호 -->
+		      FROM DUAL
+		<![CDATA[
+		CONNECT BY LEVEL <= TO_NUMBER(#couponCnt#) 
+		]]>			
+	</select>	
+	
+	<!-- 쿠폰 발행 내역 다건 등록 -->
+	<update id="coupon.insertCouponPublicationListMulti" parameterClass="java.util.List">
+		INSERT /* [coupon.xml][coupon.insertCouponPublicationListMulti] */ 
+		   ALL
+		<iterate conjunction=" ">
+		  INTO MSR_COUPON_PUBLICATION_LIST (
+		       coupon_number 
+		       , user_number
+		       , coupon_policy_code 
+		       , coupon_code
+		       , coupon_status 
+		       , reg_date
+		       , expire_start_date 
+		       , expire_end_date
+		       , coupon_publication_seq 
+		       , gift_send_cnt
+		       , gift_mms_retry_cnt 
+		       , gift_send_coupon_num 
+		       , gift_discard_cnt 
+		       , gift_status 
+		       , ipin_dup_key
+		       , gift_recv_user_number
+		       ) 
+		VALUES (
+		       #[].coupon_number#                                <!-- 쿠폰일련번호 -->
+		       , #[].user_number#                                <!-- 사용자 고유번호 -->
+		       , #[].coupon_policy_code#                         <!-- 쿠폰정책코드 -->
+		       , #[].coupon_code#                                <!-- 쿠폰코드 {001-생일, 002-1+1, 003-원두, 004-PO, 005-별15} -->
+		       , 'A'                                             <!-- 쿠폰상태{A-발행,U-사용, C-회수} -->
+		       , TO_DATE(#[].str_reg_date#, 'yyyyMMddhh24miss')  <!-- 쿠폰 발행일자(양력) -->
+		       , TRUNC(SYSDATE)                                  <!-- 유효기간 시작일자 -->
+		       , TRUNC((SYSDATE - 1 + TO_NUMBER(#[].valid_day#)))<!-- 유효기간 종료일자 -->
+		       , TO_NUMBER(#[].coupon_publication_seq#)          <!-- 쿠폰 발행 번호 -->
+		       , TO_NUMBER(#[].gift_send_cnt#)                   <!-- 선물회수 -->
+		       , TO_NUMBER(#[].gift_mms_retry_cnt#)              <!-- 선물재전송회수 -->
+		       , #[].gift_send_coupon_num#                       <!-- 쿠폰선물전송번호 -->
+		       , TO_NUMBER(#[].gift_discard_cnt#)                <!-- 선물취소 회수 -->
+		       , #[].gift_status#                                <!-- 쿠폰선물상태{0-선물가능, 1-쿠폰전송, 2-쿠폰등록, 9-선물불가} -->
+		       , #[].ipin_dup_key#                               <!-- 아이핀 키 -->
+		       , #[].gift_recv_user_number#                      <!-- 받은 사용자 고유번호 -->
+		       )
+        </iterate>
+        SELECT * FROM DUAL		       
+	</update>
+	
+	<!-- 쿠폰 선물 이력 등록 -->
+	<insert id="coupon.inserMsrCouponGiftHistory" parameterClass="co.kr.istarbucks.xo.batch.common.dto.msr.CouponGiftHistoryDto">
+		<selectKey resultClass="java.lang.Long" keyProperty="gift_hist_no">
+			SELECT SEQ_MSR_COUPON_GIFT_HIST.NEXTVAL AS gift_hist_no FROM DUAL 
+		</selectKey>	
+		INSERT /* [coupon.xml][coupon.inserMsrCouponGiftHistory] */  
+		  INTO MSR_COUPON_GIFT_HISTORY## (
+		         gift_hist_no
+		       , coupon_number
+		       , gift_send_coupon_num
+		       , history_code
+		       , gift_date
+		       , send_user_number
+		       , gift_send_mobile_num
+		       , mms_card_seqno
+		       , mms_card_name
+		       , gift_mms_card_category
+		       , mms_card_img_url
+		       , mms_title
+		       , mms_message
+		       , mms_img_1
+		       , mms_img_2
+		       , mms_img_3
+		       , mms_seq
+		       , gift_method
+		       ) 
+		VALUES (
+		         TO_NUMBER(#gift_hist_no#)   <!-- 선물이력일련번호 -->
+		       , #coupon_number#             <!-- 쿠폰일련번호 -->
+		       , #gift_send_coupon_num#      <!-- 쿠폰선물전송번호 -->
+		       , #history_code#              <!-- 구분코드{1-선물,2-재전송,3-회수,4-재선물,5-재회수,6-등록,7-등록취소} -->
+		       , SYSDATE                     <!-- 선물일자 -->
+		       , #send_user_number#          <!-- 보낸 사용자 고유번호 -->
+		       , XX1.ENC_VARCHAR2_INS(#gift_send_mobile_num#, 10, 'PHONE')      <!-- 선물전송휴대전화번호 -->
+		       , TO_NUMBER(#mms_card_seqno#) <!-- 카드순번{카테고리별 순번} -->
+		       , #mms_card_name#             <!-- 선물MMS카드 명 -->
+		       , #gift_mms_card_category#    <!-- 선물MMS카드 카테고리 -->
+		       , #mms_card_img_url#          <!-- 선물MMS카드 이미지 URL -->
+		       , #mms_title#                 <!-- MMS제목 -->
+		       , #mms_message#               <!-- MMS메시지 -->
+		       , #mms_img_1#                 <!-- MMS이미지1 -->
+		       , #mms_img_2#                 <!-- MMS이미지2 -->
+		       , #mms_img_3#                 <!-- MMS이미지3 -->
+		       , TO_NUMBER(#mms_seq#)        <!-- MMS발송요청일련번호 -->
+		       , #gift_method#               <!-- 선물방식{W-WEB, P-POS, A-APP, S-ADMIN, M-MOBILE} -->
+		       )
+	</insert>
+	
+	<!-- 쿠폰 발행 내역에 쿠폰 선물 이력 번호 업데이트 -->
+	<update id="coupon.updateCouponPublicationList" parameterClass="co.kr.istarbucks.xo.batch.common.dto.msr.CouponPublicationListDto">
+		UPDATE /* [coupon.xml][coupon.updateCouponPublicationList] */
+		       MSR_COUPON_PUBLICATION_LIST
+   		   SET gift_hist_no = #gift_hist_no#
+         WHERE coupon_number = #coupon_number#	
+	</update>
+</sqlMap>

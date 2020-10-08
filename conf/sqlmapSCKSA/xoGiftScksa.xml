@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="xoGiftScksa">
+
+    <insert id="xoGiftScksa.saveIcsXoGiftExpList" parameterClass="java.util.List">
+        INSERT ALL
+        <iterate conjunction=" ">
+            INTO ICS_XO_GIFT_EXP_LIST (
+            GIFT_NO,
+            ISSUE_DATE,
+            EXPIRED_DATE,
+            EXTEND_YN,
+            EXTINCTION_DATE,
+            GIFT_AMOUNT,
+            STATUS,
+            ACCFLAG,
+            INSERT_DATE,
+            INSERT_USER
+            )
+            VALUES (
+            #[].gift_no#,
+            #[].issue_date#,
+            #[].expired_date#,
+            #[].extend_yn#,
+            #[].extinction_date#,
+            #[].gift_amount#,
+            #[].status#,
+            '0',
+            sysdate,
+            'XO_BATCH'
+            )
+        </iterate>
+        SELECT 1 FROM dual
+    </insert>
+</sqlMap>

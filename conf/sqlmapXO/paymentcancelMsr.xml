@@ -1,0 +1,351 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="paymentcancelMsr">
+
+	<!-- 회원에 등록된 카드 조회 -->
+	<select id="paymentcancelMsr.getUserRegCardStateList" parameterClass="java.util.Map" resultClass="co.kr.istarbucks.xo.batch.common.dto.msr.UserRegCardDto">
+		SELECT   /*+ INDEX(cm PK_MSR_CARD_MASTER) */
+		         xx1.dec_varchar2_sel (urc.card_number, 10, 'CARD') AS card_number,
+		         urc.card_nickname, ci.card_img_code, ci.card_img,
+		         ci.card_thumbnail_img, ci.card_name_k, urc.card_reg_number,
+		         cm.balance, cm.balance_confirm_date, urc.reg_date,
+		         ci.card_type_code, cm.card_status,
+		         urc.user_number AS user_number,
+		         urc.auto_reload_amount, urc.auto_reload_bill_key, urc.lowest_amount, urc.auto_reload_day, urc.auto_reload_pay_method,
+		         urc.auto_reload_reg_date, urc.auto_reload_type
+		    FROM msr_card_reg_member crm,
+		         $msr_user_reg_card_table$,
+		         $msr_card_master_table$,
+		         msr_card_info ci
+		   WHERE crm.user_id = UPPER(#user_id#)
+		     AND crm.user_status = 'J'
+		     AND (urc.del_flag IS NULL OR urc.del_flag = 'N')
+		     AND crm.user_number = urc.user_number
+		     AND urc.card_number = cm.card_number
+		     AND cm.card_status = #card_state#
+		     <isEmpty property="balanceMoreThenZero">AND cm.balance >= 0</isEmpty>
+		     <isNotEmpty property="balanceMoreThenZero">AND cm.balance > 0</isNotEmpty>
+		     AND ci.card_reg_seq = cm.card_reg_seq
+		     AND urc.card_nickname IS NOT NULL
+		     <isNotEmpty property="mobileViewFlag" prepend="AND">
+		     (urc.mobile_view_flag IS NULL OR urc.mobile_view_flag != 'N')
+			</isNotEmpty>
+		ORDER BY cm.balance_confirm_date DESC, urc.reg_date DESC
+	</select>
+	
+	<!-- 사용자 등록카드 잔액 변경 -->
+	<update id="paymentcancelMsr.setMsrUserRegCardBalanceUpd" parameterClass="java.util.Map">
+		UPDATE msr_card_master##
+		   SET balance = #balance#
+		       , balance_confirm_date = SYSDATE
+		 WHERE card_number = XX1.ENC_VARCHAR2_INS(#cardNumber#, 10, 'CARD')
+	</update>
+	
+	<!-- 카드 사용 이력 조회 (스마트오더용)  -->
+    <select id="paymentcancelMsr.getMsrCardUseHistoryForSmartOrder" parameterClass="java.util.Map" resultClass="co.kr.istarbucks.xo.batch.common.dto.msr.CardUseHistoryDto">
+        SELECT /*+ INDEX(mcuh IDX_MSR_CARD_USE_HISTORY_04)*/  
+               history_code
+             , amount
+             , branch
+             , payment_type
+             , reg_date
+             , xx1.dec_varchar2_sel (mcuh.card_number, 10, 'CARD') AS card_number
+             , XX1.DEC_VARCHAR2_SEL (MERGE_CARD_ENC,10,'CARD') AS merge_card
+             , user_number
+             , balance_confirm_flag
+             , card_reg_number
+             , formula_code
+             , order_no
+             , balance
+             , star_desc
+             , business_date
+             , pos_number
+             , pos_trd_number
+             , auto_reload_stage
+             , auto_reload_result_cd
+             , send_date
+             , send_time
+          FROM msr_card_use_history## mcuh
+         WHERE mcuh.order_no = #orderNo#
+           AND mcuh.history_code = 'U'
+           AND mcuh.user_number = (SELECT urc.user_number 
+                                     FROM msr_user_reg_card## urc 
+                                    WHERE card_number = XX1.ENC_VARCHAR2_INS(#cardNumber#, 10, 'CARD')
+                                      AND rownum = 1
+                                  )
+           AND mcuh.card_number = XX1.ENC_VARCHAR2_INS(#cardNumber#, 10, 'CARD')
+    </select>
+    
+	<!-- 사용자 등록카드 카드 잔액 변경시 히스토리 등록 (사이렌오더용) -->
+	<update id="paymentcancelMsr.setMsrCardUseHistoryForSmartOrder" parameterClass="java.util.Map">
+		INSERT INTO MSR_CARD_USE_HISTORY##(
+			CARD_NUMBER ,CARD_REG_NUMBER ,USER_NUMBER  ,HISTORY_CODE ,AMOUNT
+		   ,BALANCE_CONFIRM_FLAG ,FORMULA_CODE ,REG_DATE
+		   ,ORDER_NO ,BALANCE
+		   <isNotEmpty property="branch">, BRANCH</isNotEmpty>
+           <isNotEmpty property="businessDate">, BUSINESS_DATE</isNotEmpty>
+           <isNotEmpty property="posNumber">, POS_NUMBER</isNotEmpty>
+           <isNotEmpty property="posTrdNumber">, POS_TRD_NUMBER</isNotEmpty>
+           <isNotEmpty property="sendDate">, SEND_DATE</isNotEmpty>
+           <isNotEmpty property="sendTime">, SEND_TIME</isNotEmpty>
+		)
+		SELECT 
+		    urc.card_number, urc.card_reg_number, urc.user_number, #historyCode# historyCode, $amount$ amount
+		    , #balanceConfirmFlag# balanceConfirmFlag, #formulaCode# formulaCode, SYSDATE
+		    , #orderNo# orderNo, $balance$ balance
+		    <isNotEmpty property="branch">, #branch# branch</isNotEmpty>
+            <isNotEmpty property="businessDate">, #businessDate# businessDate</isNotEmpty>
+            <isNotEmpty property="posNumber">, #posNumber# posNumber</isNotEmpty>
+            <isNotEmpty property="posTrdNumber">, #posTrdNumber# posTrdNumber</isNotEmpty>
+            <isNotEmpty property="sendDate">, #sendDate# sendDate</isNotEmpty>
+            <isNotEmpty property="sendTime">, #sendTime# sendTime</isNotEmpty>
+		  FROM msr_user_reg_card## urc 
+		 WHERE card_number = XX1.ENC_VARCHAR2_INS(#cardNumber#, 10, 'CARD')
+		   AND rownum = 1
+	</update>
+	
+	<!-- 사용 가능한 e-Gift 카드 채번 -->
+	<parameterMap id="paymentCardListMap" class="java.util.Map">
+		<parameter property="p_card_cnt" 	javaType="java.lang.Integer" 	mode="IN" />
+		<parameter property="r_card_number" jdbcType="VARCHAR" 				mode="OUT" />
+	</parameterMap>
+	<procedure id="paymentcancelMsr.getPaymentCardListProc" parameterMap="paymentCardListMap">
+		{ call FN_GET_EGIFT_B2C_CARDNO (?, ?)}
+	</procedure>
+	
+	<!-- eGiftCard 정보(카드번호 ASC 정렬) -->
+	<select id="paymentcancelMsr.getEGiftCardInfoFront" parameterClass="java.util.List" resultClass="co.kr.istarbucks.xo.batch.common.dto.msr.EGiftCardInfoDto">
+		SELECT SUB.CARD_NUMBER, SUB.PIN_NUMBER, SUB.CARD_REG_SEQ, SUB.BALANCE
+		  FROM (	
+				SELECT /*+ INDEX(ECI PK_MSR_EGIFT_CARD_INFO) */
+					   XX1.DEC_VARCHAR2_SEL(ECI.CARD_NUMBER,10,'CARD') AS CARD_NUMBER,
+				  	   ECI.PIN_NUMBER, 
+				  	   CM.CARD_REG_SEQ,
+				  	   DECODE(CM.BALANCE, NULL, 0, CM.BALANCE) AS BALANCE
+				  FROM MSR_EGIFT_CARD_INFO## ECI, MSR_CARD_MASTER## CM
+				 WHERE ECI.CARD_NUMBER = CM.CARD_NUMBER
+				   <!-- AND ECI.USE_YN = 'Y' -->
+				 <iterate prepend="AND ECI.CARD_NUMBER IN " open="(" close=")" conjunction="," >
+		        	XX1.ENC_VARCHAR2_INS(#eGiftCardList[]#, 11, 'CARD')
+		     	 </iterate>
+		     	) SUB
+		 ORDER BY SUB.CARD_NUMBER ASC
+	</select>
+	
+	<!-- 카드 회원 조회 -->
+	<select id="paymentcancelMsr.getRegMember" parameterClass="java.lang.String" resultClass="co.kr.istarbucks.xo.batch.common.dto.msr.CardRegMemberDto">
+		SELECT 
+			USER_NUMBER
+			, USER_ID
+			, USER_NAME
+			, USER_STATUS
+			, REG_DATE
+			, USER_GRADE
+			, GRADE_DATE
+			, GREEN_GRADE_DATE
+			, GOLD_GRADE_DATE
+			, ADMIN_ANNOUNCE
+			, STAR_YEAR
+		FROM MSR_CARD_REG_MEMBER
+		WHERE USER_ID = #user_id#
+		AND USER_STATUS = 'J'
+	</select>
+	
+	<!-- MSR 카드 등록 -->
+	<insert id="paymentcancelMsr.insertUserRegCard" parameterClass="co.kr.istarbucks.xo.batch.common.dto.msr.UserRegCardDto">
+		<selectKey resultClass="java.lang.Integer" keyProperty="card_reg_number">
+			SELECT SEQ_MSR_USER_REG_CARD.NEXTVAL FROM DUAL
+		</selectKey>
+		INSERT INTO MSR_USER_REG_CARD## (
+			CARD_NUMBER, USER_NUMBER, CARD_NICKNAME, REG_DATE, CARD_REG_NUMBER, DEL_FLAG
+			<isNotEmpty property="gold_card_reg_status">, GOLD_CARD_REG_STATUS</isNotEmpty>
+		) VALUES (
+			XX1.ENC_VARCHAR2_INS(#card_number#, 10, 'CARD'), #user_number#, #card_nickname#, SYSDATE, #card_reg_number#, 'N'
+			<isNotEmpty property="gold_card_reg_status">, #gold_card_reg_status#</isNotEmpty>
+		)
+	</insert>
+	
+	<!-- 회원 카드 등록 시 카드 정보 업데이트 -->
+	<update id="paymentcancelMsr.updateCardInfoForRegister" parameterClass="java.util.Map">
+		UPDATE MSR_CARD_MASTER##
+		   SET CARD_STATUS = #card_status#, CHANGE_DATE = SYSDATE, BALANCE = $balance$, BALANCE_CONFIRM_DATE = SYSDATE
+		 WHERE CARD_NUMBER = XX1.ENC_VARCHAR2_INS(#card_number#, 10, 'CARD')
+	</update>
+	
+	<!-- 카드 상태 변경 이력 등록 -->
+	<insert id="paymentcancelMsr.insertCardStatusHist" parameterClass="co.kr.istarbucks.xo.batch.common.dto.msr.CardStatusHistDto">
+		INSERT INTO MSR_CARD_STATUS_HIST## (
+			CARD_NUMBER, CHANGE_ACTOR_GROUP_CODE, CHANGE_ACTOR_ID, USER_NUMBER, CHANGE_STATUS, CHANGE_DATE, CARD_REG_NUMBER
+			<isNotEmpty property="no_use_desc">, NO_USE_DESC</isNotEmpty>
+		) VALUES (
+			XX1.ENC_VARCHAR2_INS(#card_number#, 10, 'CARD'), #change_actor_group_code#, #change_actor_id#, #user_number#, #change_status#, SYSDATE, #card_reg_number#
+			<isNotEmpty property="no_use_desc">, #no_use_desc#</isNotEmpty>
+		)
+	</insert>
+	
+	<!-- 카드 사용/충전 이력 저장 -->
+	<insert id="paymentcancelMsr.insertCardUseHistory" parameterClass="co.kr.istarbucks.xo.batch.common.dto.msr.CardUseHistoryDto">
+		INSERT INTO MSR_CARD_USE_HISTORY## (
+			CARD_NUMBER, CARD_REG_NUMBER, USER_NUMBER, REG_DATE
+			<isNotEmpty property="history_code">, HISTORY_CODE</isNotEmpty>
+			<isNotEmpty property="formula_code">, FORMULA_CODE</isNotEmpty>
+			<isNotEmpty property="balance_confirm_flag">, BALANCE_CONFIRM_FLAG</isNotEmpty>
+			<isNotEmpty property="balance">, BALANCE</isNotEmpty>
+			<isNotEmpty property="amount">, AMOUNT</isNotEmpty>
+			<isNotEmpty property="merge_card">, MERGE_CARD_ENC</isNotEmpty>
+			<isNotEmpty property="order_no">, ORDER_NO</isNotEmpty>
+		) VALUES (
+			XX1.ENC_VARCHAR2_INS(#card_number#, 10, 'CARD'), #card_reg_number#, #user_number#, SYSDATE
+			<isNotEmpty property="history_code">, #history_code#</isNotEmpty>
+			<isNotEmpty property="formula_code">, #formula_code#</isNotEmpty>
+			<isNotEmpty property="balance_confirm_flag">, #balance_confirm_flag#</isNotEmpty>
+			<isNotEmpty property="balance">, #balance#</isNotEmpty>
+			<isNotEmpty property="amount">, #amount#</isNotEmpty>
+			<isNotEmpty property="merge_card">, XX1.ENC_VARCHAR2_INS(#merge_card#, 11, 'CARD')</isNotEmpty>
+			<isNotEmpty property="order_no">, #order_no#</isNotEmpty>
+		)
+	</insert>
+	
+	<!-- 미등록 카드 이력 저장 -->
+	<insert id="paymentcancelMsr.insertCardUseHistoryEtc" parameterClass="java.util.Map">
+		INSERT INTO msr_card_use_history_etc##
+		            (card_number
+		             , history_code
+		             , amount
+		             , balance
+		             , formula_code
+		             , payment_type
+		             , reg_date
+		             <isNotEmpty property="branchCode">, branch </isNotEmpty>
+		             <isNotEmpty property="trdDate">, business_date </isNotEmpty>
+		             <isNotEmpty property="posNumber">, pos_number </isNotEmpty> 
+		             <isNotEmpty property="posTrdNumber">, pos_trd_number </isNotEmpty>
+		             <isNotEmpty property="orderNo">, order_no </isNotEmpty>
+		             )
+		     VALUES (XX1.ENC_VARCHAR2_INS(#cardNumber#, 10, 'CARD')
+		             , #historyCode#
+		             , $amount$
+		             , $balance$
+		             , #formulaCode#
+		             , TRIM (UTL_RAW.CAST_TO_RAW (#paymentType# ))
+		             , SYSDATE
+		             <isNotEmpty property="branchCode">, #branchCode# </isNotEmpty>
+		             <isNotEmpty property="trdDate">, #trdDate# </isNotEmpty>
+		             <isNotEmpty property="posNumber">, #posNumber# </isNotEmpty> 
+		             <isNotEmpty property="posTrdNumber">, #posTrdNumber# </isNotEmpty>
+		             <isNotEmpty property="orderNo">, #orderNo# </isNotEmpty>
+		             )			
+	</insert>
+	
+	<!--  eGift 카드 사용가능 여부를 X(미사용)으로 수정 -->
+	<update id="paymentcancelMsr.updateEGiftCardInfoUseYnX" parameterClass="java.util.List">
+		UPDATE MSR_EGIFT_CARD_INFO##
+		   SET USE_YN = 'X'
+		 WHERE 1=1
+		   AND 
+		     <iterate prepend=" CARD_NUMBER IN " open="(" close=")" conjunction="," >
+        	   XX1.ENC_VARCHAR2_INS(#eGiftCardList[]#, 11, 'CARD')
+     	     </iterate>
+	</update>
+	
+	<!-- 쿠폰 발행 내역 업데이트 -->
+	<update id="paymentcancelMsr.updateCouponPublicationList" parameterClass="java.util.Map">
+		UPDATE MSR_COUPON_PUBLICATION_LIST 
+		   SET 
+		   <isNotEmpty property="couponStatus">
+		     <isEqual property="couponStatus" compareValue="U">
+		        COUPON_STATUS = #couponStatus#,
+		        COUPON_USED_AMOUNT = #couponUsedAmount#,
+		        USE_DATE = SYSDATE
+		     </isEqual>
+		     <isEqual property="couponStatus" compareValue="A">
+		        COUPON_STATUS = #couponStatus#,
+		        USE_DATE = NULL, 
+		        COUPON_OPTION_SEQ = NULL, 
+		        COUPON_USED_AMOUNT = NULL
+		     </isEqual>
+		   </isNotEmpty>
+		 WHERE COUPON_NUMBER = #couponNumber#
+		   AND COUPON_STATUS = #whereCouponStatus#
+	</update>
+	
+	<!-- 거래쿠폰이력에 사용매장 등록 -->
+	<update id="paymentcancelMsr.insertTrdCouponList" parameterClass="java.util.Map">
+		INSERT INTO msr_trd_coupon_list
+		   (coupon_number, coupon_use_date, business_date, branch_code, pos_number, 
+		    pos_trd_number, branch_name, trd_seq, coupon_use_product,
+			<isNotNull property="couponProductCode2">		             
+		    coupon_use_product_2,
+			</isNotNull>
+		    coupon_discount_amount,
+		    xo_trd_yn)
+		 VALUES
+		   (#couponNumber#, SYSDATE, #saleDate#, #storeCd#, #posNo#, #seqNo#,
+		    (SELECT branch_name FROM msr_branch_info WHERE branch_code = #storeCd#), 
+		    NVL((SELECT trd_seq 
+		    	   FROM msr_trd_master 
+		    	  WHERE business_date  = #saleDate#
+                    AND branch_code    = #storeCd#
+                    AND pos_number     = #posNo#
+                    AND pos_trd_number = #seqNo#)
+		    	,SEQ_MSR_TRD_MASTER.NEXTVAL),
+		    #couponProductCode#,
+			<isNotNull property="couponProductCode2">		                       
+		    #couponProductCode2#,
+			</isNotNull>	    
+		     #couponDcAmt#,
+		     'Y') 	
+ 	</update>
+
+	<!-- 거래쿠폰이력에 사용취소매장 등록 -->
+ 	<update id="paymentcancelMsr.insertTrdCouponListCancel" parameterClass="java.util.Map">
+ 	 	INSERT INTO msr_trd_coupon_list
+   			(coupon_number, coupon_cancel_date, can_branch_code, can_business_date, can_branch_name, trd_seq, xo_trd_yn)
+		 VALUES
+		   (#couponNumber#, SYSDATE, #storeCd#, #saleDate#,
+		    (SELECT branch_name FROM msr_branch_info WHERE branch_code = #storeCd#),
+		    NVL((SELECT trd_seq 
+		    	   FROM msr_trd_master 
+		    	  WHERE business_date  = #saleDate#
+                    AND branch_code    = #storeCd#
+                    AND pos_number     = #posNo#
+                    AND pos_trd_number = #seqNo#)
+		    	,SEQ_MSR_TRD_MASTER.NEXTVAL
+		    	,'Y')
+		    )
+ 	</update>
+	
+	<!-- 등록된 쿠폰 번호가있는지 조회 -->
+	<select id="paymentcancelMsr.getTrdCouponCount" parameterClass="java.util.Map" resultClass="java.lang.Integer">
+	   SELECT count(*) AS cnt
+	     FROM msr_trd_coupon_list
+	    WHERE coupon_number  = #couponNumber#
+	      AND business_date  = #saleDate#
+	      AND branch_code    = #storeCd#
+	      AND pos_number     = #posNo#
+	      AND pos_trd_number = #seqNo#	
+	</select>
+	
+	<!-- 스마트로 연동 정보 조회 -->
+	<select id="paymentcancelMsr.getSmartroPgInfo" parameterClass="java.util.Map" resultClass="co.kr.istarbucks.xo.batch.common.pg.dto.SmartroPgInfoDto">
+		SELECT
+			     pgcm_shop_id as pgcmShopId,
+			     pgcm_shop_sgng_key as pgcmShopSgngKey,
+			     xx1.dec_varchar2_sel(pgcm_shop_cnclt_pwd, 10, 'CARD') as pgcmShopCncltPwd,
+			     smpy_mbs_id as smpyMbsId,
+			     log_file_path as logFilePath,
+			     intrl_url as intrlUrl,
+			     ipads,
+			     stlmn_port_no as stlmnPortNo,
+			     cnclt_port_no as cncltPortNo,
+			     tmt_mscnt as tmtMscnt
+		 FROM
+		    	 msr_pgcm_stlmn_infrm_m##
+		 WHERE
+		     	 chnl_dvsn_code = #channelCode#
+		   AND 	 srvi_dvsn_code = #serviceCode#
+		   AND 	 pgcm_code = #pgCode#
+	</select>
+	
+</sqlMap>

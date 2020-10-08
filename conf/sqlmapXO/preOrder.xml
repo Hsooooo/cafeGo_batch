@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="preOrder">
+
+    <!-- XO_PRE_ORDER# 테이블 데이터 삭제 -->
+    <delete id="preOrder.deletePreOrder" parameterClass="java.util.Map">
+		DELETE
+		  FROM XO_PRE_ORDER##
+		 WHERE status = '09'
+		   AND REG_DATE <![CDATA[ < ]]> TRUNC(SYSDATE - #deleteDay#)
+	</delete>
+
+    <!-- XO_PRE_ORDER# 테이블 데이터 삭제 -->
+    <delete id="preOrder.deletePreOrderDetail" parameterClass="java.util.Map">
+		DELETE
+		  FROM XO_PRE_ORDER_DETAIL
+		 WHERE SROR_CLCLT_NO IN
+		       (SELECT SROR_CLCLT_NO
+		          FROM XO_PRE_ORDER##
+		         WHERE status   = '09'
+		           AND REG_DATE <![CDATA[ < ]]> TRUNC(SYSDATE - #deleteDay#)
+		       )
+	</delete>
+
+    <!-- XO_PRE_ORDER# 테이블 데이터 삭제 -->
+    <delete id="preOrder.deletePrePayment" parameterClass="java.util.Map">
+		DELETE 
+		  FROM XO_PRE_PAYMENT##
+		 WHERE SROR_CLCLT_NO IN
+		       (SELECT SROR_CLCLT_NO
+		          FROM XO_PRE_ORDER##
+		         WHERE status   = '09'
+		           AND REG_DATE <![CDATA[ < ]]> TRUNC(SYSDATE - #deleteDay#)
+		       )
+	</delete>
+    
+	
+</sqlMap>
