@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+
+<sqlMap namespace="withdrawal">
+	
+	<!-- 탈퇴 유예기간 초과 회원 조회 -->
+	<select id="withdrawal.getWithdrawalMemberList" parameterClass="java.util.Map" resultClass="co.kr.cafego.api.batch.common.dto.WithdrawalMemberDto">
+		
+	</select>
+	
+	
+	<!-- 푸시 히스토리 등록 -->
+	<insert id="autoPushSS.insertPushHistory" parameterClass="co.kr.istarbucks.xo.batch.common.dto.xo.PushHistoryDto">
+		INSERT INTO xo_push_history (
+			push_no				 <!-- PUSH 일련번호{"9" + YYYYMMDDHH24MISS + 시퀀스 5자리} -->
+			, user_id			 <!-- 사용자아이디 -->
+			, push_id			 <!-- PUSH ID -->
+			, push_type			 <!-- PUSH타입{1-주문접수, 2-제조완료, 3-제조불가, 4-고객호출, 5-기타} -->
+			, push_message		 <!-- PUSH 메세지 -->
+			, order_no			 <!-- 주문번호 -->
+			, os_type			 <!-- 단말구분{1-iOS, 2-Android, 9-기타} -->
+			, view_type			 <!-- 결과화면 타입{W-웹뷰, N-네이티브뷰, X-호출안함} -->
+			, url				 <!-- 웹뷰 호출 시 이동할 URL -->
+			, screen_id			 <!-- 네이티브뷰 호출 시 이동할 화면아이디 -->
+			, param				 <!-- 파라미터 -->
+			, reg_date			 <!-- 요청일자 -->
+			, result_code		 <!-- 결과코드 -->
+			, result_msg		 <!-- 결과상세{코드99일시 GCM서버 혹은 APNS에서 리턴되는 한글을 반환함} -->
+			, result_push_id	 <!-- PUSH 발송 고유 번호 -->
+			<isNotEmpty property="process_date">, process_date</isNotEmpty>
+		) VALUES (
+			(SELECT fn_get_serial_number('9') as order_no FROM DUAL)
+			, #user_id#
+			, #push_id#
+			, #push_type#
+			, #push_message#
+			, #order_no#
+			, #os_type#
+			, #view_type#
+			, #url#
+			, #screen_id#
+			, #param#
+			, SYSDATE
+			, #result_code#
+			, #result_msg#
+			, #result_push_id#
+			<isNotEmpty property="process_date">, TO_DATE(#process_date#, 'YYYY-MM-DD HH24:MI:SS')</isNotEmpty>
+		)
+	</insert>
+	
+	
+</sqlMap>
