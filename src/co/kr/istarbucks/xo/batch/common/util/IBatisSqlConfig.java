@@ -14,11 +14,8 @@ import co.kr.istarbucks.xo.batch.exception.IbatisException;
 
 public class IBatisSqlConfig {
 	private static Log logger = LogFactory.getLog(IBatisSqlConfig.class); 
-	private static final SqlMapClient xoSqlMap;		// 사이렌오더
-	private static final SqlMapClient msrSqlMap;	// MSR
-	private static final SqlMapClient homeSqlMap;
-	private static final SqlMapClient scksaSqlMap;
-	private static final SqlMapClient pushSqlMap;	// PUSH - maria
+	//cafeGo
+	private static final SqlMapClient sqlMap;
 	
 	static {
 		try {
@@ -27,55 +24,63 @@ public class IBatisSqlConfig {
 			String properties = "jdbc.properties";
 			String resource = "XOSqlMapConfig.xml";
 			Properties prop = Resources.getResourceAsProperties (properties);
-			//  데이터베이스 비밀번호 복호화 처리..
-			prop.setProperty ("xo.oracle.jdbc.password", TripleDes.decrypt (prop.getProperty ("xo.oracle.jdbc.password")));
-			
+//			//  데이터베이스 비밀번호 복호화 처리..
+//			prop.setProperty ("xo.oracle.jdbc.password", TripleDes.decrypt (prop.getProperty ("xo.oracle.jdbc.password")));
+//			
 			Reader reader = Resources.getResourceAsReader (resource);
-			xoSqlMap = SqlMapClientBuilder.buildSqlMapClient (reader, prop);
-			// ExpressOrder DB ==========================================================
+//			xoSqlMap = SqlMapClientBuilder.buildSqlMapClient (reader, prop);
+//			// ExpressOrder DB ==========================================================
+//			
+//			// MSR DB =================================================================
+//			properties = "jdbc.properties";
+//			resource = "MSRSqlMapConfig.xml";
+//			prop = Resources.getResourceAsProperties (properties);
+//			//  데이터베이스 비밀번호 복호화 처리..
+//			prop.setProperty ("msr.oracle.jdbc.password", TripleDes.decrypt (prop.getProperty ("msr.oracle.jdbc.password")));
+//			
+//			reader = Resources.getResourceAsReader (resource);
+//			msrSqlMap = SqlMapClientBuilder.buildSqlMapClient (reader, prop);
+//			// MSR DB =================================================================
+//			
+//			// HOME DB =================================================================
+//			properties = "jdbc.properties";
+//			resource = "HOMESqlMapConfig.xml";
+//			prop = Resources.getResourceAsProperties (properties);
+//			//  데이터베이스 비밀번호 복호화 처리..
+//			prop.setProperty ("homepage.oracle.jdbc.password", TripleDes.decrypt (prop.getProperty ("homepage.oracle.jdbc.password")));
+//			
+//			reader = Resources.getResourceAsReader (resource);
+//			homeSqlMap = SqlMapClientBuilder.buildSqlMapClient (reader, prop);
+//			// HOME DB =================================================================
+//			
+//			
+//			// SAKCA DB =================================================================
+//			properties = "jdbc.properties";
+//			resource = "SCKSASqlMapConfig.xml";
+//			prop = Resources.getResourceAsProperties (properties);
+//			//  데이터베이스 비밀번호 복호화 처리..
+//			prop.setProperty ("scksa.oracle.jdbc.password", TripleDes.decrypt (prop.getProperty ("scksa.oracle.jdbc.password")));
+//			reader = Resources.getResourceAsReader (resource);
+//			scksaSqlMap = SqlMapClientBuilder.buildSqlMapClient (reader, prop);
+//			// SAKCA DB =================================================================
+//			
+//			// PUSH DB =================================================================
+//			properties = "jdbc.properties";
+//			resource = "PushSqlMapConfig.xml";
+//			prop = Resources.getResourceAsProperties (properties);
+//			//  데이터베이스 비밀번호 복호화 처리..
+//			prop.setProperty ("push.mysql.jdbc.password", TripleDes.decrypt (prop.getProperty ("push.mysql.jdbc.password")));
+//			reader = Resources.getResourceAsReader (resource);
+//			pushSqlMap = SqlMapClientBuilder.buildSqlMapClient (reader, prop);
+//			// PUSH DB =================================================================
 			
-			// MSR DB =================================================================
 			properties = "jdbc.properties";
-			resource = "MSRSqlMapConfig.xml";
-			prop = Resources.getResourceAsProperties (properties);
-			//  데이터베이스 비밀번호 복호화 처리..
-			prop.setProperty ("msr.oracle.jdbc.password", TripleDes.decrypt (prop.getProperty ("msr.oracle.jdbc.password")));
-			
+			resource = "SqlMapConfig.xml";
+			prop = Resources.getResourceAsProperties(properties);
+			prop.setProperty ("oracle.jdbc.password", TripleDes.decrypt (prop.getProperty ("oracle.jdbc.password")));
 			reader = Resources.getResourceAsReader (resource);
-			msrSqlMap = SqlMapClientBuilder.buildSqlMapClient (reader, prop);
-			// MSR DB =================================================================
+			sqlMap = SqlMapClientBuilder.buildSqlMapClient(reader, prop);
 			
-			// HOME DB =================================================================
-			properties = "jdbc.properties";
-			resource = "HOMESqlMapConfig.xml";
-			prop = Resources.getResourceAsProperties (properties);
-			//  데이터베이스 비밀번호 복호화 처리..
-			prop.setProperty ("homepage.oracle.jdbc.password", TripleDes.decrypt (prop.getProperty ("homepage.oracle.jdbc.password")));
-			
-			reader = Resources.getResourceAsReader (resource);
-			homeSqlMap = SqlMapClientBuilder.buildSqlMapClient (reader, prop);
-			// HOME DB =================================================================
-			
-			
-			// SAKCA DB =================================================================
-			properties = "jdbc.properties";
-			resource = "SCKSASqlMapConfig.xml";
-			prop = Resources.getResourceAsProperties (properties);
-			//  데이터베이스 비밀번호 복호화 처리..
-			prop.setProperty ("scksa.oracle.jdbc.password", TripleDes.decrypt (prop.getProperty ("scksa.oracle.jdbc.password")));
-			reader = Resources.getResourceAsReader (resource);
-			scksaSqlMap = SqlMapClientBuilder.buildSqlMapClient (reader, prop);
-			// SAKCA DB =================================================================
-			
-			// PUSH DB =================================================================
-			properties = "jdbc.properties";
-			resource = "PushSqlMapConfig.xml";
-			prop = Resources.getResourceAsProperties (properties);
-			//  데이터베이스 비밀번호 복호화 처리..
-			prop.setProperty ("push.mysql.jdbc.password", TripleDes.decrypt (prop.getProperty ("push.mysql.jdbc.password")));
-			reader = Resources.getResourceAsReader (resource);
-			pushSqlMap = SqlMapClientBuilder.buildSqlMapClient (reader, prop);
-			// PUSH DB =================================================================
 			
 		} catch ( Exception e ) {
 			logger.error(e.getMessage(), e);
@@ -83,43 +88,7 @@ public class IBatisSqlConfig {
 		}
 	}
 	
-	/**
-	 * XO DB
-	 * @return
-	 */
-	public static SqlMapClient getXoSqlMapInstance () {
-		return xoSqlMap;
-	}
-	
-	/**
-	 * MSR DB
-	 * @return
-	 */
-	public static SqlMapClient getMsrSqlMapInstance () {
-		return msrSqlMap;
-	}
-	
-	/**
-	 * HOMEPAGE DB
-	 * @return
-	 */
-	public static SqlMapClient getHomeSqlMapInstance () {
-		return homeSqlMap;
-	}
-
-	/**
-	 * SCKSA DB
-	 * @return
-	 */
-	public static SqlMapClient getScksasqlMapInstance() {
-		return scksaSqlMap;
-	}
-	
-	/**
-	 * SCKSA DB
-	 * @return
-	 */
-	public static SqlMapClient getPushMapInstance() {
-		return pushSqlMap;
+	public static SqlMapClient getSqlMapInstance() {
+		return sqlMap;
 	}
 }
