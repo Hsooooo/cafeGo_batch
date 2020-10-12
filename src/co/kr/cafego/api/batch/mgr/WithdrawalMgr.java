@@ -20,8 +20,13 @@ public class WithdrawalMgr {
 	 * @return
 	 * @throws SQLException
 	 */
-	public int withdrawalBatch(String date) throws SQLException {
+	public String withdrawalBatch(String date) throws SQLException {
+		StringBuffer logSb = new StringBuffer();
 		List<WithdrawalMemberDto> withdrawalMemberList = withdrawalDao.getWithdrawalMemberList(date);
+		
+		logSb.append("[").append(date).append("]").append("[Å»Åð±âÇÑ¸¸·á È¸¿ø ¼ö][")
+		.append(withdrawalMemberList.size()).append("]");
+		
 		
 		
 		return 0;
