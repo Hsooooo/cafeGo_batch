@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- For assistance related to logback-translator or configuration -->
+<!-- files in general, please contact the logback user mailing list -->
+<!-- at http://www.qos.ch/mailman/listinfo/logback-user -->
+<!-- -->
+<!-- For professional support please see -->
+<!-- http://www.qos.ch/shop/products/professionalSupport -->
+
+<!-- scanPeriod 속성을 명시하지 않는 경우 디폴트 값은 1분이 적용된다. -->
+<!-- scanPeriod에 적용할 수 있는 단위는 milliseconds, seconds, minutes, hours가 있고 단위를 
+	생략하는 경우 경우 디폴트 단위는 milliseconds가 적용이 된다. -->
+<configuration scan="true" scanPeriod="10 seconds">
+
+	<appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+		<encoder>
+			<charset>EUC-KR</charset>
+			<pattern>%d %-5level [%thread] [%file:%line] %replace(%msg){'\r|\n', ' '}%n</pattern>
+		</encoder>
+	</appender>
+
+	<appender name="EXT" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<fileNamePattern>/sck/bin/jeus7/logs/extapi/if/extapi_%d{yyyyMMdd}.log</fileNamePattern>
+			<maxHistory>180</maxHistory>
+		</rollingPolicy>
+		<encoder>
+			<charset>EUC-KR</charset>
+			<pattern>%d %-5level [%thread] [%file:%line] %replace(%msg){'\r|\n', ' '}%n</pattern>
+		</encoder>
+	</appender>
+	
+	<appender name="EXT_STOCK" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<fileNamePattern>/sck/bin/jeus7/logs/extapi/stock/extapi_stock_%d{yyyyMMdd}.log</fileNamePattern>
+			<maxHistory>180</maxHistory>
+		</rollingPolicy>
+		<encoder>
+			<charset>EUC-KR</charset>
+			<pattern>%d %-5level [%thread] [%file:%line] %replace(%msg){'\r|\n', ' '}%n</pattern>
+		</encoder>
+	</appender>
+	
+	<appender name="EXT_NAVER" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<fileNamePattern>/sck/bin/jeus7/logs/extapi/naver/extapi_naver_%d{yyyyMMdd}.log</fileNamePattern>
+			<maxHistory>180</maxHistory>
+		</rollingPolicy>
+		<encoder>
+			<charset>EUC-KR</charset>
+			<pattern>%d %-5level [%thread] [%file:%line] %replace(%msg){'\r|\n', ' '}%n</pattern>
+		</encoder>
+	</appender>
+	
+	<appender name="ERROR" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<fileNamePattern>/sck/bin/jeus7/logs/extapi/error/extapi_error_%d{yyyyMMdd}.log</fileNamePattern>
+			<maxHistory>180</maxHistory>
+		</rollingPolicy>
+		<filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+			<level>ERROR</level>
+		</filter>
+		<encoder>
+			<charset>EUC-KR</charset>
+    		<pattern>%d %-5level [%thread] %caller{1} %replace(%msg){'\r|\n', ' '}%n</pattern>
+		</encoder>
+	</appender>
+	
+	<appender name="POS" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<fileNamePattern>/sck/bin/jeus7/logs/extapi/pos/pos_%d{yyyyMMdd}.log</fileNamePattern>
+			<maxHistory>180</maxHistory>
+		</rollingPolicy>
+		<encoder>
+			<charset>EUC-KR</charset>
+			<pattern>%d %-5level [%thread] [%file:%line] %replace(%msg){'\r|\n', ' '}%n</pattern>
+		</encoder>
+	</appender>
+	
+	<appender name="RESULT" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<fileNamePattern>/sck/bin/jeus7/logs/extapi/result/result_%d{yyyyMMdd}.log</fileNamePattern>
+			<maxHistory>180</maxHistory>
+		</rollingPolicy>
+		<encoder>
+			<charset>EUC-KR</charset>
+			<pattern>%d %replace(%msg){'\r|\n', ' '}%n</pattern>
+		</encoder>
+	</appender>
+	
+	<appender name="CRITICAL" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<fileNamePattern>/sck/bin/jeus7/logs/extapi/critical/critical_%d{yyyyMMdd}.log</fileNamePattern>
+			<maxHistory>180</maxHistory>
+		</rollingPolicy>
+		<encoder>
+			<charset>EUC-KR</charset>
+			<pattern>%d %-5level [%thread] [%file:%line] %replace(%msg){'\r|\n', ' '}%n</pattern>
+		</encoder>
+	</appender>
+	
+	<appender name="SQL" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<fileNamePattern>/sck/bin/jeus7/logs/extapi/sql/sql_%d{yyyyMMdd}.log</fileNamePattern>
+			<maxHistory>180</maxHistory>
+		</rollingPolicy>
+		<encoder>
+			<charset>EUC-KR</charset>
+			<pattern>%d %-5level [%thread] %replace(%msg){'\r|\n', ' '}%n</pattern>
+		</encoder>
+	</appender>
+	
+
+	<root level="INFO">
+ 		<appender-ref ref="console"/>
+	</root>
+	
+	<!-- MSR -->
+	<logger name="INFO" level="INFO" additivity="false">
+		<appender-ref ref="EXT" />
+		<appender-ref ref="ERROR" />
+	</logger>
+	
+	<!-- POS -->
+	<logger name="POS" level="DEBUG" additivity="false">
+		<appender-ref ref="POS" />
+	</logger>
+	
+	<!-- RESULT -->
+	<logger name="RESULT" level="INFO" additivity="false">
+		<appender-ref ref="RESULT" />
+	</logger>
+	
+	<!-- CRITICAL -->
+	<logger name="CRITICAL" level="DEBUG" additivity="false">
+		<appender-ref ref="CRITICAL" />
+	</logger>
+	
+	<!-- STOCK -->
+	<logger name="STOCK" level="INFO" additivity="false">
+		<appender-ref ref="EXT_STOCK" />
+	</logger>
+	
+	<!-- SQL -->	
+	<logger name="sql.co.kr.istarbucks" level="ERROR" additivity="false">
+		<appender-ref ref="SQL" />
+	</logger>
+	
+	<!-- 주문상태변경 -->
+	<logger name="EXT_NAVER" level="INFO" additivity="false">
+		<appender-ref ref="EXT_NAVER" />
+	</logger>
+	
+	<!-- 기타 설정 -->
+	<logger name="org.springframework" level="INFO" additivity="false"/>
+	<logger name="org.springframework.security" level="INFO" additivity="false"/>
+	<!-- BindException logger -->
+	<logger name="org.springframework.web.servlet.mvc.method.annotation.ExceptionHandlerExceptionResolver" level="DEBUG" additivity="false"/>
+	<!-- Trace logger -->
+	<logger name="org.springframework.aop.interceptor" level="ALL" additivity="false"/>
+	<!-- Cache logger -->
+	<logger name="org.springframework.cache.interceptor" level="ALL" additivity="false"/>
+	<!-- <logger name="org.apache" level="INFO" additivity="false"/> -->
+
+</configuration>

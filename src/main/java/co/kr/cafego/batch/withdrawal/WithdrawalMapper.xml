@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="co.kr.cafego.batch.withdrawal.WithdrawalMapper">
+
+	<!-- 최대 탈퇴 기한 (7일) 만료된 탈퇴 회원 목록 -->
+	<select id="getExpireWdMemberList" parameterType="java.lang.String" resultType="co.kr.cafego.batch.common.dto.WithdrawalMemberDto">
+		SELECT mwi.member_num 	AS memberNum
+			 , mwi.wd_desc  	AS wdDesc
+			 , mwi.wd_date      as wdDate
+		  FROM MEMBER_WITHDRAWAL_INFO mwi
+		  	 , MEMBER_INFO mi
+		 WHERE mwi.member_num = mi.member_num
+		   AND mi.member_status = 'W'
+		   AND TO_DATE(mwi.wd_date, 'YYYYMMDD')  <![CDATA[ < ]]> TO_DATE(#{expireDate},'YYYYMMDD')
+	</select>
+
+</mapper>

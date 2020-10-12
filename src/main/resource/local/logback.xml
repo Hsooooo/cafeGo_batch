@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- For assistance related to logback-translator or configuration -->
+<!-- files in general, please contact the logback user mailing list -->
+<!-- at http://www.qos.ch/mailman/listinfo/logback-user -->
+<!-- -->
+<!-- For professional support please see -->
+<!-- http://www.qos.ch/shop/products/professionalSupport -->
+
+<!-- scanPeriod 속성을 명시하지 않는 경우 디폴트 값은 1분이 적용된다. -->
+<!-- scanPeriod에 적용할 수 있는 단위는 milliseconds, seconds, minutes, hours가 있고 단위를 
+	생략하는 경우 경우 디폴트 단위는 milliseconds가 적용이 된다. -->
+<configuration scan="true" scanPeriod="10 seconds">
+
+	<appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+		<encoder>
+			<charset>UTF-8</charset>
+			<pattern>%d %-5level [%file:%line] %replace(%msg){'\r|\n', ' '}%n</pattern>
+		</encoder>
+	</appender>
+	
+	<appender name="INFO" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<fileNamePattern>/cafeGo/log/api/if/api_if.%d{yyyy-MM-dd}.log</fileNamePattern>
+			<maxHistory>180</maxHistory>
+		</rollingPolicy>
+		<encoder>
+			<charset>UTF-8</charset>
+			<pattern>%d %-5level [%file:%line] %replace(%msg){'\r|\n', ' '}%n</pattern>
+		</encoder>
+	</appender>
+	
+	<appender name="ERROR" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<fileNamePattern>/cafeGo/log/api/error/api_error.%d{yyyy-MM-dd}.log</fileNamePattern>
+			<maxHistory>180</maxHistory>
+		</rollingPolicy>
+		<filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+			<level>ERROR</level>
+		</filter>
+		<encoder>
+			<charset>UTF-8</charset>
+    		<pattern>%d %-5level %caller{1} %replace(%message){'\r|\n', ' '}%n</pattern>
+		</encoder>
+	</appender>
+	
+
+	<appender name="KAKAO" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<fileNamePattern>/cafeGo/log/kakao/kakaoGate.%d{yyyy-MM-dd}.log</fileNamePattern>
+			<maxHistory>180</maxHistory>
+		</rollingPolicy>
+		<encoder>
+			<charset>UTF-8</charset>
+			<pattern>%d %-5level [%file:%line] %replace(%msg){'\r|\n', ' '}%n</pattern>
+		</encoder>
+	</appender>
+	
+
+	<appender name="POS" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<fileNamePattern>C:/project_log/naver/log/pos/pos.%d{yyyy-MM-dd}.log</fileNamePattern>
+			<maxHistory>180</maxHistory>
+		</rollingPolicy>
+		<encoder>
+			<charset>UTF-8</charset>
+			<pattern>%d %-5level [%file:%line] %replace(%msg){'\r|\n', ' '}%n</pattern>
+		</encoder>
+	</appender>
+	
+	
+	<appender name="RESULT" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<fileNamePattern>/cafeGo/log/api/result/result.%d{yyyy-MM-dd}.log</fileNamePattern>
+			<maxHistory>180</maxHistory>
+		</rollingPolicy>
+		<encoder>
+			<charset>UTF-8</charset>
+			<pattern>%d %replace(%msg){'\r|\n', ' '}%n</pattern>
+		</encoder>
+	</appender>
+		
+	<appender name="CRITICAL" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<fileNamePattern>C:/project_log/naver/log/critical/critical.%d{yyyy-MM-dd}.log</fileNamePattern>
+			<maxHistory>180</maxHistory>
+		</rollingPolicy>
+		<encoder>
+			<charset>UTF-8</charset>
+			<pattern>%d %-5level [%file:%line] %replace(%msg){'\r|\n', ' '}%n</pattern>
+		</encoder>
+	</appender>
+	
+	<appender name="SQL" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<fileNamePattern>C:/project_log/naver/log/sql/sql.%d{yyyy-MM-dd}.log</fileNamePattern>
+			<maxHistory>180</maxHistory>
+		</rollingPolicy>
+		<encoder>
+			<charset>UTF-8</charset>
+			<pattern>%d %-5level %replace(%msg){'\r|\n', ' '}%n</pattern>
+		</encoder>
+	</appender>
+	
+	
+ 	<root level="INFO">
+ 		<appender-ref ref="console" />
+	</root>
+	
+	<!-- API -->
+	<logger name="INFO" level="DEBUG" additivity="false">
+		<appender-ref ref="INFO" />
+		<appender-ref ref="ERROR" />
+	</logger>
+	
+	<!-- KAKAO GATEWAY 구간 -->
+	<logger name="KAKAO" level="TRACE" additivity="false">
+		<appender-ref ref="KAKAO" />
+	</logger>
+	
+	<!-- RESULT -->
+	<logger name="RESULT" level="INFO" additivity="false">
+		<appender-ref ref="RESULT" />
+	</logger>
+	
+	<!-- CRITICAL -->
+	<logger name="CRITICAL" level="INFO" additivity="false">
+		<appender-ref ref="CRITICAL" />
+	</logger>
+	
+	<!-- SQL -->	
+	<logger name="sql.co.kr.istarbucks" level="DEBUG" additivity="false">
+		<appender-ref ref="SQL" />
+	</logger>
+		
+	<!-- 기타 설정 -->
+	<logger name="org.springframework" level="INFO" additivity="false"/>
+	<logger name="org.springframework.security" level="INFO" additivity="false"/>
+	<!-- BindException logger -->
+	<logger name="org.springframework.web.servlet.mvc.method.annotation.ExceptionHandlerExceptionResolver" level="DEBUG" additivity="false"/>
+	<!-- Trace logger -->
+	<logger name="org.springframework.aop.interceptor" level="ALL" additivity="false"/>
+	<!-- Cache logger -->
+	<logger name="org.springframework.cache.interceptor" level="ALL" additivity="false"/>
+	<!-- <logger name="org.apache" level="INFO" additivity="false"/> -->
+
+</configuration>
