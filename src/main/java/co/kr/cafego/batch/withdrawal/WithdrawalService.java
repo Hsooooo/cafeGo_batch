@@ -22,7 +22,9 @@ public class WithdrawalService extends ApiSupport {
 	@Autowired
 	private WithdrawalMapper withdrawalMapper;
 	
-	@Scheduled(cron="*/1 * * * * *")
+	
+	//cron - 매일 새벽 1시 0분에 실행
+	@Scheduled(cron="0 1 * * * *")
 	public void withdrawalBatch() {
 		logger.info("##################[Withdrawal Batch Start!!!!]["+TODAY+"]#####################################");
 		
