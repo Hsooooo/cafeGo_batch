@@ -12,4 +12,18 @@ public interface WithdrawalMapper {
 	 * @return
 	 */
 	public List<WithdrawalMemberDto> getExpireWdMemberList(String today);
+
+	/**
+	 * 포인트 정보 삭제
+	 * 	 * @param expireWdList
+	 * @return
+	 */
+	public int delPointInfo(List<WithdrawalMemberDto> expireWdList);
+
+	/**
+	 * 회원 정보 삭제
+	 * @param expireWdList
+	 * @return
+	 */
+	public int delMemberInfo(List<WithdrawalMemberDto> expireWdList);
 }

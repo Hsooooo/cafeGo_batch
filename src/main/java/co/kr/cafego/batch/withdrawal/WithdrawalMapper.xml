@@ -14,5 +14,26 @@
 		   AND mi.member_status = 'W'
 		   AND TO_DATE(mwi.wd_date, 'YYYYMMDD')  <![CDATA[ < ]]> TO_DATE(#{expireDate},'YYYYMMDD')
 	</select>
+	
+	<delete id="delMemberInfo" parameterType="java.util.List">
+		DELETE FROM MEMBER_INFO
+		 WHERE MEMBER_NUM IN
+		 <if test="list != null">
+		 	<foreach collection="list" item="item" open="(" close=")" separator=", ">
+		 		#{item.memberNum}
+		 	</foreach>
+		 </if>
+	</delete>
+	
+	
+	<delete id="delPointInfo" parameterType="java.util.List">
+		DELETE FROM MEMBER_POINT
+		 WHERE MEMBER_NUM IN
+		 <if test="list != null">
+		 	<foreach collection="list" item="item" open="(" close=")" separator=", ">
+		 		#{item.memberNum}
+		 	</foreach>
+		 </if>
+	</delete>
 
 </mapper>
